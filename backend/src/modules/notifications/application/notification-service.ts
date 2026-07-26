@@ -2,7 +2,7 @@ import type {
   RegisterPushTokenRequest,
   TestPushNotificationPayload,
   UnregisterPushTokenRequest,
-} from '@web-app-demo/contracts'
+} from '@mediqaz/contracts'
 
 import type {
   CheckPushReceiptsOptions,

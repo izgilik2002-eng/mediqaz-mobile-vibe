@@ -44,7 +44,7 @@ test('mobile source renders text only through Typography', () => {
   const offenders: string[] = [];
 
   for (const file of sourceFiles(srcRoot)) {
-    const relativePath = relative(srcRoot, file);
+    const relativePath = relative(srcRoot, file).replaceAll('\\', '/');
     const source = readFileSync(file, 'utf8');
 
     if (relativePath !== typographyComponent) {

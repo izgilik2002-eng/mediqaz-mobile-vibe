@@ -1,14 +1,17 @@
 import {
   adminDashboardResponseSchema,
+  adminPendingApprovalsResponseSchema,
   adminUserParamsSchema,
   adminUsersQuerySchema,
   adminUsersResponseSchema,
   apiErrorSchema,
   updateProfileRequestSchema,
   updateProfileResponseSchema,
+  updateUserApprovalRequestSchema,
+  updateUserApprovalResponseSchema,
   updateUserRoleRequestSchema,
   updateUserRoleResponseSchema,
-} from '@web-app-demo/contracts'
+} from '@mediqaz/contracts'
 import { createRoute, OpenAPIHono } from '@hono/zod-openapi'
 import type { MiddlewareHandler } from 'hono'
 
@@ -101,6 +104,44 @@ const updateRoleRoute = createRoute({
   },
 })
 
+const pendingApprovalsRoute = createRoute({
+  method: 'get',
+  path: '/approvals/pending',
+  responses: {
+    200: {
+      content: { 'application/json': { schema: adminPendingApprovalsResponseSchema } },
+      description: 'Doctors waiting for approval',
+    },
+    401: { content: errorContent, description: 'Authentication required' },
+    403: { content: errorContent, description: 'Administrator access required' },
+  },
+})
+
+const updateApprovalRoute = createRoute({
+  method: 'patch',
+  path: '/users/{userId}/approval',
+  request: {
+    params: adminUserParamsSchema,
+    body: {
+      content: {
+        'application/json': {
+          schema: updateUserApprovalRequestSchema,
+        },
+      },
+    },
+  },
+  responses: {
+    200: {
+      content: { 'application/json': { schema: updateUserApprovalResponseSchema } },
+      description: 'Updated consultation approval',
+    },
+    400: { content: errorContent, description: 'Invalid payload' },
+    401: { content: errorContent, description: 'Authentication required' },
+    403: { content: errorContent, description: 'Administrator access required' },
+    404: { content: errorContent, description: 'User not found' },
+  },
+})
+
 type CreateUsersRoutesOptions = {
   requireAdmin: MiddlewareHandler<AuthHttpEnv>
   requireAuth: MiddlewareHandler<AuthHttpEnv>
@@ -128,6 +169,19 @@ export function createUsersRoutes({
   adminRoutes.openapi(dashboardRoute, async (c) => c.json(await service.dashboard(), 200))
   adminRoutes.openapi(listUsersRoute, async (c) => {
     return c.json(await service.listUsers(c.req.valid('query')), 200)
+  })
+  adminRoutes.openapi(pendingApprovalsRoute, async (c) =>
+    c.json(await service.listPendingApprovals(), 200),
+  )
+  adminRoutes.openapi(updateApprovalRoute, async (c) => {
+    const result = await executeUsers(() =>
+      service.updateApproval(
+        c.var.user,
+        c.req.valid('param').userId,
+        c.req.valid('json'),
+      ),
+    )
+    return c.json(result, 200)
   })
   adminRoutes.openapi(updateRoleRoute, async (c) => {
     const result = await executeUsers(() =>

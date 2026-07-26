@@ -4,7 +4,7 @@ import { isSafeInternalHref, resolveNotificationHref } from '../src/features/not
 
 test('resolveNotificationHref accepts only internal Expo Router paths', () => {
   expect(resolveNotificationHref({ href: '/details/components' })).toBe('/details/components');
-  expect(resolveNotificationHref({ href: ' /paywall ' })).toBe('/paywall');
+  expect(resolveNotificationHref({ href: ' /profile ' })).toBe('/profile');
   expect(resolveNotificationHref({ href: 'https://example.com' })).toBeNull();
   expect(resolveNotificationHref({ href: '//example.com' })).toBeNull();
   expect(resolveNotificationHref({ href: 'mailto:user@example.com' })).toBeNull();

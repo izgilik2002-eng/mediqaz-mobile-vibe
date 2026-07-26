@@ -4,7 +4,7 @@ type BrowserLogoutIntentStorage = {
   setItem: (key: string, value: string) => void;
 };
 
-export const pendingLogoutStorageKey = 'web_app_demo_pending_logout';
+export const pendingLogoutStorageKey = 'mediqaz_pending_logout';
 const legacyPendingLogoutValue = 'pending-v1';
 const epochPendingLogoutPrefix = 'pending-v2:';
 

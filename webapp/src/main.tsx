@@ -25,7 +25,7 @@ createRoot(document.getElementById('root')!).render(
           attribute="class"
           defaultTheme="system"
           enableSystem
-          storageKey="web_app_demo_theme"
+          storageKey="mediqaz_theme"
         >
           <AuthProvider>
             <App />

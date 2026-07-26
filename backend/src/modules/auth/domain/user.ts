@@ -1,4 +1,4 @@
-import type { SubscriptionSnapshot, UserDto, UserRole } from '@web-app-demo/contracts'
+import type { DoctorSpecialty, UserDto, UserRole } from '@mediqaz/contracts'
 
 export type AuthUserRecord = {
   id: string
@@ -6,6 +6,8 @@ export type AuthUserRecord = {
   passwordHash: string | null
   displayName: string | null
   role: UserRole
+  isApproved: boolean
+  specialty: DoctorSpecialty | null
   createdAt: Date
 }
 
@@ -13,17 +15,15 @@ export type AuthenticatedPrincipal = UserDto & {
   sessionId: string
 }
 
-export function toUserDto(
-  user: AuthUserRecord,
-  subscription: SubscriptionSnapshot,
-): UserDto {
+export function toUserDto(user: AuthUserRecord): UserDto {
   return {
     id: user.id,
     email: user.email,
     displayName: user.displayName,
     role: user.role,
+    isApproved: user.isApproved,
+    specialty: user.specialty,
     createdAt: user.createdAt.toISOString(),
-    subscription,
   }
 }
 

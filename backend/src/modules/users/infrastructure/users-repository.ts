@@ -1,9 +1,10 @@
 import type {
   AdminUserSummary,
   AdminUsersQuery,
+  DoctorSpecialty,
   UserRole,
-} from '@web-app-demo/contracts'
-import { ADMIN_USERS_MAX_PAGE } from '@web-app-demo/contracts'
+} from '@mediqaz/contracts'
+import { ADMIN_USERS_MAX_PAGE } from '@mediqaz/contracts'
 
 import {
   acquirePushTokenUserLock,
@@ -15,7 +16,9 @@ import {
 import type {
   AdminDashboardReader,
   AdminUsersReader,
+  PendingApprovalsReader,
   ProfileWriter,
+  UserApprovalUpdater,
   UserRoleUpdater,
 } from '../application/ports'
 import { UsersFailure } from '../domain/errors'
@@ -25,6 +28,9 @@ const userSummarySelect = {
   email: true,
   displayName: true,
   role: true,
+  isApproved: true,
+  specialty: true,
+  approvedAt: true,
   createdAt: true,
 } as const
 
@@ -33,13 +39,18 @@ type UsersRepository =
   & AdminDashboardReader
   & AdminUsersReader
   & UserRoleUpdater
+  & UserApprovalUpdater
+  & PendingApprovalsReader
 
 export function createPrismaUsersRepository(db: DbClient): UsersRepository {
   return {
-    updateProfile(userId, displayName) {
+    updateProfile(userId, input) {
       return db.user.update({
         where: { id: userId },
-        data: { displayName },
+        data: {
+          displayName: input.displayName,
+          ...(input.specialty === undefined ? {} : { specialty: input.specialty }),
+        },
         select: userSummarySelect,
       })
     },
@@ -135,6 +146,66 @@ export function createPrismaUsersRepository(db: DbClient): UsersRepository {
         return toAdminUserSummary(updated)
       }, userAuthorityTransitionTransactionOptions)
     },
+
+    updateApproval(input) {
+      return db.$transaction(async (tx) => {
+        await acquireUserAuthenticationAuthorityLock(tx, input.targetUserId)
+
+        const actor = await tx.user.findUnique({
+          where: { id: input.actorUserId },
+          select: { id: true, role: true },
+        })
+        if (actor?.role !== 'admin') {
+          throw new UsersFailure('forbidden', 'Administrator access is required')
+        }
+
+        const target = await tx.user.findUnique({
+          where: { id: input.targetUserId },
+          select: userSummarySelect,
+        })
+        if (!target) {
+          throw new UsersFailure('not_found', 'User not found')
+        }
+        if (target.isApproved === input.isApproved) {
+          return toAdminUserSummary(target)
+        }
+
+        const updated = await tx.user.update({
+          where: { id: target.id },
+          data: {
+            isApproved: input.isApproved,
+            approvedAt: input.isApproved ? input.now : null,
+            approvedByUserId: input.isApproved ? actor.id : null,
+          },
+          select: userSummarySelect,
+        })
+
+        // Revoking access must take effect now, not when the current access
+        // token happens to expire, so live sessions are ended.
+        if (!input.isApproved) {
+          await tx.authSession.updateMany({
+            where: { userId: target.id, revokedAt: null },
+            data: { revokedAt: input.now },
+          })
+        }
+
+        return toAdminUserSummary(updated)
+      }, userAuthorityTransitionTransactionOptions)
+    },
+
+    async listPendingApprovals() {
+      const [users, total] = await Promise.all([
+        db.user.findMany({
+          where: { isApproved: false },
+          orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+          take: 100,
+          select: userSummarySelect,
+        }),
+        db.user.count({ where: { isApproved: false } }),
+      ])
+
+      return { items: users.map(toAdminUserSummary), total }
+    },
   }
 }
 
@@ -143,6 +214,9 @@ function toAdminUserSummary(user: {
   email: string
   displayName: string | null
   role: UserRole
+  isApproved: boolean
+  specialty: DoctorSpecialty | null
+  approvedAt: Date | null
   createdAt: Date
 }): AdminUserSummary {
   return {
@@ -150,6 +224,9 @@ function toAdminUserSummary(user: {
     email: user.email,
     displayName: user.displayName,
     role: user.role,
+    isApproved: user.isApproved,
+    specialty: user.specialty,
+    approvedAt: user.approvedAt?.toISOString() ?? null,
     createdAt: user.createdAt.toISOString(),
   }
 }

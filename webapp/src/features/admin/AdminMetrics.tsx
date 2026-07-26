@@ -2,6 +2,7 @@ import {
   UserAdd01Icon,
   UserGroupIcon,
   UserShield01Icon,
+  UserStatusIcon,
 } from '@hugeicons/core-free-icons'
 
 import { SectionCards } from '@/components/dashboard'
@@ -13,10 +14,11 @@ import {
 } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
-import { useAdminDashboardQuery } from './queries'
+import { useAdminDashboardQuery, usePendingApprovalsQuery } from './queries'
 
 export function AdminMetrics() {
   const query = useAdminDashboardQuery()
+  const pendingApprovals = usePendingApprovalsQuery()
 
   if (query.isPending) {
     return (
@@ -66,6 +68,12 @@ export function AdminMetrics() {
           icon: UserAdd01Icon,
           label: 'New in 7 days',
           value: query.data.newUsersLast7Days.toLocaleString(),
+        },
+        {
+          description: 'Doctors who cannot record consultations yet.',
+          icon: UserStatusIcon,
+          label: 'Awaiting approval',
+          value: pendingApprovals.data?.total.toLocaleString() ?? '—',
         },
       ]}
     />

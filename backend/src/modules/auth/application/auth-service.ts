@@ -5,7 +5,7 @@ import type {
   RegisterPayload,
   SocialAuthPayload,
   SocialAuthProvider,
-} from '@web-app-demo/contracts'
+} from '@mediqaz/contracts'
 
 import { AuthFailure } from '../domain/errors'
 import { sessionExpiresAt, type SessionMetadata } from '../domain/session'
@@ -22,7 +22,6 @@ import type {
   Passwords,
   RefreshTokens,
   SocialIdentities,
-  SubscriptionReader,
 } from './ports'
 
 type AuthServiceDependencies = {
@@ -41,7 +40,6 @@ type AuthServiceDependencies = {
   refreshTokens: RefreshTokens
   repository: AuthRepository
   socialIdentities?: SocialIdentities
-  subscriptionReader: SubscriptionReader
 }
 
 export class AuthService {
@@ -321,7 +319,7 @@ export class AuthService {
     }
 
     return {
-      ...(await this.userDto(session.user)),
+      ...toUserDto(session.user),
       sessionId: session.id,
     }
   }
@@ -369,7 +367,7 @@ export class AuthService {
 
   private async sessionResponse(user: AuthUserRecord, sessionId: string, refreshToken: string) {
     return {
-      user: await this.userDto(user),
+      user: toUserDto(user),
       accessToken: await this.dependencies.accessTokens.sign({
         sub: user.id,
         email: user.email,
@@ -385,10 +383,6 @@ export class AuthService {
 
   private sessionAbsoluteNotBefore(now: Date) {
     return new Date(now.getTime() - this.dependencies.sessionAbsoluteTtlDays * 24 * 60 * 60 * 1000)
-  }
-
-  private async userDto(user: AuthUserRecord) {
-    return toUserDto(user, await this.dependencies.subscriptionReader(user.id))
   }
 }
 

@@ -2,11 +2,15 @@ import {
   adminDashboardResponseSchema,
   adminUsersQuerySchema,
   adminUsersResponseSchema,
+  adminPendingApprovalsResponseSchema,
+  updateUserApprovalRequestSchema,
+  updateUserApprovalResponseSchema,
   updateUserRoleRequestSchema,
   updateUserRoleResponseSchema,
   type AdminUsersQuery,
+  type UpdateUserApprovalRequest,
   type UpdateUserRoleRequest,
-} from '@web-app-demo/contracts'
+} from '@mediqaz/contracts'
 
 import type { AuthenticatedTransport } from '@/platform/api'
 
@@ -38,6 +42,25 @@ export function updateAdminUserRole(
     {
       method: 'PATCH',
       body: updateUserRoleRequestSchema.parse(input),
+    },
+  )
+}
+
+export function getPendingApprovals(transport: AuthenticatedTransport) {
+  return transport.request('/api/admin/approvals/pending', adminPendingApprovalsResponseSchema)
+}
+
+export function updateAdminUserApproval(
+  transport: AuthenticatedTransport,
+  userId: string,
+  input: UpdateUserApprovalRequest,
+) {
+  return transport.request(
+    `/api/admin/users/${encodeURIComponent(userId)}/approval`,
+    updateUserApprovalResponseSchema,
+    {
+      method: 'PATCH',
+      body: updateUserApprovalRequestSchema.parse(input),
     },
   )
 }

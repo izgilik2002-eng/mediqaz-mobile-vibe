@@ -10,10 +10,11 @@ import { errorResponse, handleError, validationErrorHook } from './http/errors'
 import { createIngressSecurity } from './http/security'
 import { createAuthModule, type AuthHttpEnv } from './modules/auth'
 import {
-  createBillingModule,
-  type AppStoreSubscriptionVerifier,
-  type GooglePlaySubscriptionVerifier,
-} from './modules/billing'
+  createConsultationsModule,
+  type AppointmentStore,
+  type CompletionClient,
+  type TranscriptionGrantIssuer,
+} from './modules/consultations'
 import { createNotificationsModule } from './modules/notifications'
 import { createUsersModule } from './modules/users'
 
@@ -21,29 +22,22 @@ type CreateAppOptions = {
   backgroundTasks?: TaskDeferrer
   emailDelivery?: EmailDelivery
   env: AppEnv
-  appStoreIapVerifier?: AppStoreSubscriptionVerifier
-  googlePlayIapVerifier?: GooglePlaySubscriptionVerifier
   prisma: DbClient
+  /** Overridable so tests exercise routing without reaching real providers. */
+  appointments?: AppointmentStore
+  completions?: CompletionClient
+  transcriptionGrants?: TranscriptionGrantIssuer
 }
 
-const defaultWebhookBodyLimitBytes = 256 * 1024
-const defaultWebhookRateLimitMax = 600
-const defaultWebhookRateLimitWindowSeconds = 60
-
 export function createApp({
-  appStoreIapVerifier,
+  appointments,
   backgroundTasks = createBackgroundTasks(),
+  completions,
   emailDelivery = disabledEmailDelivery,
   env,
-  googlePlayIapVerifier,
   prisma,
+  transcriptionGrants,
 }: CreateAppOptions) {
-  const billing = createBillingModule({
-    appStoreVerifier: appStoreIapVerifier,
-    db: prisma,
-    env,
-    googlePlayVerifier: googlePlayIapVerifier,
-  })
   const notifications = createNotificationsModule({ db: prisma, env })
   const auth = createAuthModule({
     backgroundTasks,
@@ -51,12 +45,18 @@ export function createApp({
     emailDelivery,
     env,
     logoutCleanup: notifications.logoutCleanup,
-    subscriptionReader: billing.getSubscription,
   })
   const users = createUsersModule({
     db: prisma,
     requireAdmin: auth.requireAdmin,
     requireAuth: auth.requireAuth,
+  })
+  const consultations = createConsultationsModule({
+    appointments,
+    completions,
+    db: prisma,
+    env,
+    transcriptionGrants,
   })
   const app = new OpenAPIHono<AuthHttpEnv>({ defaultHook: validationErrorHook })
 
@@ -91,24 +91,15 @@ export function createApp({
   }
   for (const middleware of createIngressSecurity({
     ...publicWriteSecurity,
-    bodyLimitBytes: env.IAP_BODY_LIMIT_BYTES,
-    rateLimitMax: env.IAP_RATE_LIMIT_MAX,
-    rateLimitWindowSeconds: env.IAP_RATE_LIMIT_WINDOW_SECONDS,
+    bodyLimitBytes: env.CONSULTATION_BODY_LIMIT_BYTES,
+    rateLimitMax: env.CONSULTATION_RATE_LIMIT_MAX,
+    rateLimitWindowSeconds: env.CONSULTATION_RATE_LIMIT_WINDOW_SECONDS,
   })) {
-    app.use('/api/iap/*', middleware)
-  }
-  for (const middleware of createIngressSecurity({
-    ...publicWriteSecurity,
-    bodyLimitBytes: env.WEBHOOK_BODY_LIMIT_BYTES ?? defaultWebhookBodyLimitBytes,
-    rateLimitMax: env.WEBHOOK_RATE_LIMIT_MAX ?? defaultWebhookRateLimitMax,
-    rateLimitWindowSeconds:
-      env.WEBHOOK_RATE_LIMIT_WINDOW_SECONDS ?? defaultWebhookRateLimitWindowSeconds,
-  })) {
-    app.use('/api/webhooks/*', middleware)
+    app.use('/api/consultations/*', middleware)
   }
   app.get('/', (c) => {
     return c.json({
-      name: 'web_app_demo backend',
+      name: 'mediqaz backend',
       status: 'ok',
     })
   })
@@ -137,13 +128,12 @@ export function createApp({
   app.route('/api/auth', auth.routes)
   app.route('/api/users', users.userRoutes)
   app.route('/api/admin', users.adminRoutes)
-  app.route('/api/iap', billing.createRoutes(auth.authenticateAccessToken))
   app.route('/api/notifications', notifications.createRoutes(auth.authenticateAccessToken))
-  app.route('/api/webhooks', billing.webhookRoutes)
+  app.route('/api/consultations', consultations.createRoutes(auth.authenticateAccessToken))
 
   app.doc('/openapi.json', {
     openapi: '3.0.0',
-    info: { title: 'web_app_demo API', version: '1.0.0' },
+    info: { title: 'mediqaz API', version: '1.0.0' },
   })
   app.notFound((c) => c.json(errorResponse('NOT_FOUND', 'Route not found'), 404))
   app.onError(handleError)

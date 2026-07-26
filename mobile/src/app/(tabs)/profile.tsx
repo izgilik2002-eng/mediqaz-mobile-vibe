@@ -5,20 +5,15 @@ import {
   SessionControls,
   useAuth,
 } from '@/features/auth';
-import {
-  SubscriptionSummary,
-  useSubscriptionIap,
-} from '@/features/billing';
 
 export default function ProfileScreen() {
   const auth = useAuth();
-  const iap = useSubscriptionIap();
 
   if (!auth.user) return null;
 
   return (
     <ScreenShell
-      description="Review your identity, entitlement, and current device session."
+      description="Review your identity and current device session."
       eyebrow="Account"
       testID={TEST_IDS.profile.screen}
       title="Profile">
@@ -30,13 +25,6 @@ export default function ProfileScreen() {
       />
 
       <AuthSessionErrorNotice />
-
-      <SubscriptionSummary
-        isConnected={iap.isConnected}
-        isManaging={iap.isManagingSubscriptions}
-        onManage={() => void iap.manageSubscriptions()}
-        subscription={auth.user.subscription}
-      />
 
       <SessionControls
         isLoggingOut={auth.isTransitioning}

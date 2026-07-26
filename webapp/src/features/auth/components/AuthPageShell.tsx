@@ -15,7 +15,7 @@ export function AuthPageShell({ children }: { children: ReactNode }) {
               <HugeiconsIcon aria-hidden icon={GalleryVerticalEndIcon} size={16} strokeWidth={2} />
             </span>
             <Typography as="span" variant="control">
-              web_app_demo
+              mediqaz
             </Typography>
           </Link>
         </div>

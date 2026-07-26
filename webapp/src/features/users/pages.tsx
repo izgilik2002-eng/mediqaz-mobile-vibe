@@ -1,4 +1,4 @@
-import type { UserDto } from '@web-app-demo/contracts'
+import type { UserDto } from '@mediqaz/contracts'
 
 import { PageContainer, PageHeader } from '@/components/PageLayout'
 import { AppearancePanel } from '@/features/settings'

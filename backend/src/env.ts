@@ -30,17 +30,6 @@ const optionalPositiveIntegerSchema = z.preprocess((value) => {
   return trimmed === '' ? undefined : trimmed
 }, z.coerce.number().int().positive().optional())
 
-const commaSeparatedStringArraySchema = z
-  .string()
-  .optional()
-  .default('')
-  .transform((value) =>
-    value
-      .split(',')
-      .map((item) => item.trim())
-      .filter(Boolean),
-  )
-
 const optionalHttpHeaderNameSchema = z.preprocess((value) => {
   if (typeof value !== 'string') return value
   const trimmed = value.trim()
@@ -77,12 +66,6 @@ const envSchema = z.object({
   AUTH_BODY_LIMIT_BYTES: z.coerce.number().int().positive().max(1024 * 1024).default(64 * 1024),
   AUTH_RATE_LIMIT_MAX: z.coerce.number().int().positive().default(60),
   AUTH_RATE_LIMIT_WINDOW_SECONDS: z.coerce.number().int().positive().default(60),
-  IAP_BODY_LIMIT_BYTES: z.coerce.number().int().positive().max(1024 * 1024).default(64 * 1024),
-  IAP_RATE_LIMIT_MAX: z.coerce.number().int().positive().default(60),
-  IAP_RATE_LIMIT_WINDOW_SECONDS: z.coerce.number().int().positive().default(60),
-  WEBHOOK_BODY_LIMIT_BYTES: optionalPositiveIntegerSchema,
-  WEBHOOK_RATE_LIMIT_MAX: optionalPositiveIntegerSchema,
-  WEBHOOK_RATE_LIMIT_WINDOW_SECONDS: optionalPositiveIntegerSchema,
   SHUTDOWN_GRACE_SECONDS: z.coerce.number().int().positive().max(60).default(20),
   TRUST_PROXY: booleanStringSchema,
   TRUSTED_PROXY_CLIENT_IP_HEADER: optionalHttpHeaderNameSchema,
@@ -98,18 +81,6 @@ const envSchema = z.object({
   SPACES_UPLOAD_URL_TTL_SECONDS: z.coerce.number().int().positive().max(7 * 24 * 60 * 60).default(15 * 60),
   SPACES_DOWNLOAD_URL_TTL_SECONDS: z.coerce.number().int().positive().max(7 * 24 * 60 * 60).default(5 * 60),
   SPACES_PUBLIC_CACHE_CONTROL: stringWithDefault('public, max-age=31536000, immutable'),
-  APPLE_IAP_BUNDLE_ID: optionalStringSchema,
-  APPLE_IAP_APP_APPLE_ID: optionalPositiveIntegerSchema,
-  APPLE_IAP_ENVIRONMENT: z.enum(['Sandbox', 'Production']).default('Sandbox'),
-  APPLE_IAP_ISSUER_ID: optionalStringSchema,
-  APPLE_IAP_KEY_ID: optionalStringSchema,
-  APPLE_IAP_PRIVATE_KEY_BASE64: optionalStringSchema,
-  APPLE_IAP_ROOT_CERTS_DIR: optionalStringSchema,
-  APPLE_IAP_PRODUCT_IDS: commaSeparatedStringArraySchema,
-  GOOGLE_PLAY_PACKAGE_NAME: optionalStringSchema,
-  GOOGLE_PLAY_SERVICE_ACCOUNT_JSON_BASE64: optionalStringSchema,
-  GOOGLE_PLAY_PRODUCT_IDS: commaSeparatedStringArraySchema,
-  GOOGLE_PLAY_BASE_PLAN_IDS: commaSeparatedStringArraySchema,
   APPLE_AUTH_BUNDLE_ID: optionalStringSchema,
   APPLE_AUTH_JWKS_TIMEOUT_MS: z.coerce.number().int().positive().default(5_000),
   GOOGLE_AUTH_CLIENT_IDS: z
@@ -130,6 +101,22 @@ const envSchema = z.object({
   PUSH_OUTBOX_PROCESS_MAX_RUNTIME_MS: optionalPositiveIntegerSchema,
   PUSH_OUTBOX_PROCESSING_STALE_MS: optionalPositiveIntegerSchema,
   PUSH_RECEIPT_CHECK_LIMIT: optionalPositiveIntegerSchema,
+  // Speech-to-text and med-card generation. Backend-only secrets: they must
+  // never reach the mobile bundle.
+  DEEPGRAM_API_KEY: optionalStringSchema,
+  GROQ_API_KEY: optionalStringSchema,
+  TRANSCRIPTION_GRANT_TTL_SECONDS: z.coerce.number().int().positive().max(3_600).default(300),
+  GROQ_MAX_CONCURRENT: z.coerce.number().int().positive().max(16).default(1),
+  // A full consultation transcript is far larger than an auth payload; Cyrillic
+  // costs two bytes per character, so the limit is sized for the contract cap.
+  CONSULTATION_BODY_LIMIT_BYTES: z.coerce
+    .number()
+    .int()
+    .positive()
+    .max(4 * 1024 * 1024)
+    .default(512 * 1024),
+  CONSULTATION_RATE_LIMIT_MAX: z.coerce.number().int().positive().default(30),
+  CONSULTATION_RATE_LIMIT_WINDOW_SECONDS: z.coerce.number().int().positive().default(60),
 }).superRefine((env, ctx) => {
   validateJwtSecret(env, ctx)
   validateProductionRuntime(env, ctx)
@@ -138,8 +125,6 @@ const envSchema = z.object({
   validateSessionTtls(env, ctx)
   validateTrustedProxy(env, ctx)
   validateStorageEnv(env, ctx)
-  validateAppleIapEnv(env, ctx)
-  validateGooglePlayIapEnv(env, ctx)
 })
 
 export type AppEnv = z.infer<typeof envSchema>
@@ -334,76 +319,3 @@ function validateStorageEnv(env: z.infer<typeof envSchema>, ctx: z.RefinementCtx
   }
 }
 
-function validateAppleIapEnv(env: z.infer<typeof envSchema>, ctx: z.RefinementCtx) {
-  const configuredKeys = [
-    'APPLE_IAP_BUNDLE_ID',
-    'APPLE_IAP_ISSUER_ID',
-    'APPLE_IAP_KEY_ID',
-    'APPLE_IAP_PRIVATE_KEY_BASE64',
-  ] as const
-  const isConfigured = configuredKeys.some((key) => env[key] !== undefined)
-
-  if (!isConfigured) return
-
-  for (const key of configuredKeys) {
-    if (env[key] === undefined) {
-      ctx.addIssue({
-        code: 'custom',
-        path: [key],
-        message: `${key} is required when App Store IAP verification is configured`,
-      })
-    }
-  }
-
-  if (env.APPLE_IAP_PRODUCT_IDS.length === 0) {
-    ctx.addIssue({
-      code: 'custom',
-      path: ['APPLE_IAP_PRODUCT_IDS'],
-      message: 'APPLE_IAP_PRODUCT_IDS must list every App Store subscription product ID when App Store IAP verification is configured',
-    })
-  }
-
-  if (env.APPLE_IAP_ENVIRONMENT === 'Production' && env.APPLE_IAP_APP_APPLE_ID === undefined) {
-    ctx.addIssue({
-      code: 'custom',
-      path: ['APPLE_IAP_APP_APPLE_ID'],
-      message: 'APPLE_IAP_APP_APPLE_ID is required for production App Store verification',
-    })
-  }
-}
-
-function validateGooglePlayIapEnv(env: z.infer<typeof envSchema>, ctx: z.RefinementCtx) {
-  const configuredKeys = [
-    'GOOGLE_PLAY_PACKAGE_NAME',
-    'GOOGLE_PLAY_SERVICE_ACCOUNT_JSON_BASE64',
-  ] as const
-  const isConfigured = configuredKeys.some((key) => env[key] !== undefined)
-
-  if (!isConfigured) return
-
-  for (const key of configuredKeys) {
-    if (env[key] === undefined) {
-      ctx.addIssue({
-        code: 'custom',
-        path: [key],
-        message: `${key} is required when Google Play IAP verification is configured`,
-      })
-    }
-  }
-
-  if (env.GOOGLE_PLAY_PRODUCT_IDS.length === 0) {
-    ctx.addIssue({
-      code: 'custom',
-      path: ['GOOGLE_PLAY_PRODUCT_IDS'],
-      message: 'GOOGLE_PLAY_PRODUCT_IDS must list every Google Play subscription product ID when Google Play IAP verification is configured',
-    })
-  }
-
-  if (env.GOOGLE_PLAY_BASE_PLAN_IDS.length === 0) {
-    ctx.addIssue({
-      code: 'custom',
-      path: ['GOOGLE_PLAY_BASE_PLAN_IDS'],
-      message: 'GOOGLE_PLAY_BASE_PLAN_IDS must list every accepted Google Play subscription base plan ID when Google Play IAP verification is configured',
-    })
-  }
-}

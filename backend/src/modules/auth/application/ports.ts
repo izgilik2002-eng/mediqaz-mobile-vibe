@@ -2,8 +2,7 @@ import type {
   PasswordResetRequestResponse,
   RegisterPayload,
   SocialAuthProvider,
-  SubscriptionSnapshot,
-} from '@web-app-demo/contracts'
+} from '@mediqaz/contracts'
 
 import type { TaskDeferrer } from '../../../background-tasks'
 import type { SessionMetadata } from '../domain/session'
@@ -149,9 +148,6 @@ export type SocialIdentities = {
   verify(provider: SocialAuthProvider, idToken: string): Promise<SocialIdentity>
 }
 
-export type SubscriptionReader = (userId: string) =>
-  | SubscriptionSnapshot
-  | Promise<SubscriptionSnapshot>
 export type LogoutCleanupStore = {
   removePushTokens(userId: string, expoPushTokens: string[]): Promise<void>
 }

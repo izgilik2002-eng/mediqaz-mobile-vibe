@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import type { MeResponse } from '@web-app-demo/contracts'
+import type { MeResponse } from '@mediqaz/contracts'
 
 import { authQueryKeys, useAuth } from '@/features/auth'
 import { updateProfile } from './api'

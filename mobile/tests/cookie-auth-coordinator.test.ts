@@ -15,19 +15,6 @@ import { logoutWithPushCleanup } from '../src/features/auth/logout';
 import { ApiTransport } from '../src/platform/api/transport';
 
 const originalFetch = globalThis.fetch;
-const inactiveSubscription = {
-  entitlement: 'premium',
-  isActive: false,
-  state: 'inactive',
-  platform: null,
-  productId: null,
-  originalTransactionId: null,
-  transactionId: null,
-  expiresAt: null,
-  willAutoRenew: null,
-  updatedAt: null,
-};
-
 afterEach(() => {
   globalThis.fetch = originalFetch;
 });
@@ -338,7 +325,7 @@ test('browser auth coordinator uses one named exclusive Web Lock when available'
   })).resolves.toBe('done');
 
   expect(events).toEqual([
-    'lock:web_app_demo:auth-cookie-mutation:exclusive',
+    'lock:mediqaz:auth-cookie-mutation:exclusive',
     'mutation',
     'lock:released',
   ]);
@@ -360,7 +347,7 @@ test('browser auth coordinator fails closed in a browser without Web Locks', asy
 test('browser session coordinator accepts remote events and advances its monotonic epoch', async () => {
   if (typeof BroadcastChannel === 'undefined') return;
 
-  const remoteChannel = new BroadcastChannel('web_app_demo:expo-web-auth-session');
+  const remoteChannel = new BroadcastChannel('mediqaz:expo-web-auth-session');
   const remoteEpoch = browserSessionCoordinator.current().epoch + 1_000_000;
   const received = new Promise<{ epoch: number; state: string; userId?: string }>((resolve) => {
     const unsubscribe = browserSessionCoordinator.subscribe((event) => {
@@ -742,8 +729,9 @@ function authResponse(principal: string) {
       email: `${principal}@example.com`,
       displayName: null,
       role: 'user',
+      isApproved: false,
+      specialty: null,
       createdAt: '2026-05-11T00:00:00.000Z',
-      subscription: inactiveSubscription,
     },
   };
 }

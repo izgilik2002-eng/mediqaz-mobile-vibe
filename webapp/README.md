@@ -17,7 +17,7 @@ This section may be updated during first-run bootstrap. If the root `README.md` 
 - TanStack Query
 - TanStack Form
 - TanStack Router
-- Zod contracts from `@web-app-demo/contracts`
+- Zod contracts from `@mediqaz/contracts`
 - shadcn CLI
 - Playwright
 - ESLint
@@ -49,7 +49,7 @@ VITE_API_URL=http://localhost:3000
 
 ## Deployment
 
-Production deployment for the browser app uses DigitalOcean App Platform Static Sites from the full Git monorepo branch with `bun install --frozen-lockfile && bun run build:webapp`, `webapp/dist`, and `index.html` as the SPA catch-all by default. Generate the concrete spec with `bun run deploy:do:specs webapp`; App Platform builds from Git, not from local `dist`. Follow the shared runbook in [../docs/DEPLOYMENT.md](../docs/DEPLOYMENT.md). If the user explicitly chooses Yandex Cloud, deploy the built `webapp/dist` output through Yandex Object Storage static website hosting plus Cloud CDN by following [../docs/YANDEX_CLOUD.md](../docs/YANDEX_CLOUD.md).
+The admin panel is not deployed yet. It builds to static output with `bun run build:webapp` (`webapp/dist`) and needs `index.html` as the SPA catch-all wherever it is hosted. When it is deployed, add it as a second Railway service with its own config file, or to any static host, and follow [../docs/DEPLOYMENT.md](../docs/DEPLOYMENT.md).
 
 ## Practice
 
@@ -108,7 +108,7 @@ error-recovery and empty states, self-demotion protection, admin promotion,
 target-session revocation, and the existing concurrent-tab session behavior.
 
 The run starts Docker Compose `postgres_test`, applies migrations to
-`web_app_demo_test`, idempotently seeds the E2E administrator, starts the backend
+`mediqaz_test`, idempotently seeds the E2E administrator, starts the backend
 with `TEST_DATABASE_URL` as its `DATABASE_URL`, starts Vite, and removes the test
 database volume after the run by default.
 

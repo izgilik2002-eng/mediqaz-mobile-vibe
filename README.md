@@ -20,8 +20,7 @@ Before cloning or installing this template for an end user, the agent should ask
 - Ask whether the product needs real-time collaboration, chat, presence, live notifications, or other WebSocket-style updates.
 - If `mobile` is active, ask whether Expo/EAS builds, Expo Push notifications, and Maestro E2E validation are needed now or can be left unconfigured until later.
 - For files/images/media, ask whether assets are public or private, what users upload, expected max file size, allowed file types, whether thumbnails/optimized variants are needed, and when files should be deleted.
-- Ask whether deployment is needed now. If yes, use DigitalOcean by default and ask for production domains/URLs and release targets, not for a cloud provider choice.
-- For DigitalOcean deployment, verify App Platform GitHub integration first, then generate specs with `bun run deploy:do:specs`; never hand-substitute secrets or URLs into app specs.
+- Ask whether deployment is needed now. If yes, ask for production domains/URLs and release targets. The backend deploys to Railway from `backend/Dockerfile`; see [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
 - If the user explicitly asks for Yandex Cloud, follow [docs/YANDEX_CLOUD.md](docs/YANDEX_CLOUD.md) instead of improvising provider choices.
 - If backend/API, full-stack, uploads, or database-backed validation is active, verify Docker Compose and the Docker daemon before local setup.
 
@@ -36,7 +35,7 @@ Install this repository into the project. Before cloning from a GitHub URL, ask 
 
 If mobile is active, ask whether Expo/EAS builds, Expo Push notifications, and Maestro E2E validation are needed now; do not write expo.owner, do not write extra.eas.projectId, and do not run EAS project init until I choose the real Expo/EAS owner. If I do not have an Expo account yet or do not need EAS now, leave EAS unconfigured. If EAS is needed now, ask me to log in with `bunx eas-cli login`, inspect available owners with `bunx eas-cli whoami`, ask which personal account or organization should own the Expo project, then update mobile/app.config.js with the chosen expo.owner, project slug, ios.bundleIdentifier, and android.package before running `bunx eas-cli project:init`. If Expo Push is needed now, use the existing foundation: keep push disabled until EAS `extra.eas.projectId` exists, configure APNs/FCM credentials in Expo/EAS, never commit native credential files or service-account secrets, set backend `EXPO_PUSH_ACCESS_TOKEN` only when Expo push security is enabled, run the backend notification worker or `notifications:process` cron, and verify on a physical device with an installed development or production build by temporarily enabling `ENABLE_TEST_PUSH` and calling authenticated `POST /api/notifications/test-push`. If mobile Maestro E2E is needed, follow docs/TESTING.md: use an installed Expo development build rather than Expo Go, start backend and Metro on host-reachable LAN URLs, set `EXPO_PUBLIC_E2E=1` only for E2E bundles, pass `MAESTRO_DEV_SERVER_URL`, and let the runner preflight backend/Metro before UI steps.
 
-Prefer the monolithic backend in this repository; do not introduce microservices during setup. If real-time features later need horizontal scaling across multiple backend instances, use managed Redis-compatible Pub/Sub such as DigitalOcean Managed Valkey or Yandex Managed Service for Valkey to fan out events between WebSocket connections. If deployment is needed, use DigitalOcean App Platform, DigitalOcean Managed PostgreSQL, and DigitalOcean Spaces by default; ask me for production domains/URLs and release targets, but do not ask me to choose a cloud provider unless I explicitly request another provider. For DigitalOcean deployment, first verify that App Platform is connected to my GitHub account/organization and has access to the full monorepo branch, then generate concrete specs with `bun run deploy:do:specs` into `.scratch/deploy`; do not use manual `sed`, `perl`, or shell substitution for secrets, CORS origins, `VITE_API_URL`, or `PUBLIC_WEBAPP_URL`. If I explicitly request Yandex Cloud, use Yandex Serverless Containers, Yandex Managed Service for PostgreSQL, Yandex Object Storage, and Yandex Cloud CDN according to docs/YANDEX_CLOUD.md.
+Prefer the monolithic backend in this repository; do not introduce microservices during setup. If real-time features later need horizontal scaling across multiple backend instances, use a managed Redis-compatible Pub/Sub to fan out events between WebSocket connections. Deployment targets Railway with Railway managed PostgreSQL; ask me for production domains/URLs and release targets and follow docs/DEPLOYMENT.md.
 
 If backend/API, full-stack, uploads, or any database-backed validation is active, verify Docker Compose with `docker compose version` and the Docker daemon with `docker info`; if Docker is missing or not running, explain how to install/start it for my OS before continuing. Treat this checkout as a new project by default, not as a pull request back to the template: detach the original template remote unless I explicitly say I am contributing to the template, and add my own GitHub remote only if I provide one or ask you to create/publish it. Rename package.json and other repository-specific identifiers to the chosen project name where applicable. After first-run setup is complete, delete the marked Bootstrap-Only Instructions blocks from AGENTS.md and CLAUDE.md. Use Docker Compose for local PostgreSQL on Windows, macOS, and Linux; do not require native PostgreSQL or cloud credentials for local development.
 ```
@@ -62,16 +61,15 @@ If backend/API, full-stack, uploads, or any database-backed validation is active
 - Expo Push foundation is included but intentionally inert until an installed project has EAS `extra.eas.projectId`; push also stays disabled on web, `EXPO_PUBLIC_E2E=1`, or `EXPO_PUBLIC_DISABLE_PUSH_NOTIFICATIONS=1`. When push is active, configure APNs/FCM in Expo/EAS, keep credential files and service-account secrets out of git, set backend `EXPO_PUSH_ACCESS_TOKEN` only when Expo Push Security is enabled, run `bun run --cwd backend start:worker:notifications` or `bun run --cwd backend start:cron -- notifications:process`, and verify from a logged-in physical device with an installed development or production build by temporarily setting `ENABLE_TEST_PUSH=true` and calling authenticated `POST /api/notifications/test-push`. The route queues only and is disabled by default.
 - When mobile Maestro E2E is active, use an installed Expo development build, not Expo Go. Start the backend and Metro on host-reachable LAN URLs, set `EXPO_PUBLIC_E2E=1` only for E2E bundles, pass `MAESTRO_DEV_SERVER_URL`, keep backend/Metro/test-data preflight checks ahead of UI actions, and run `bun run --cwd mobile e2e:maestro:audit` after flow or runner changes.
 - Prefer README-level deferred-surface notes over source-code comments. Add code comments only when a dormant code path would otherwise mislead future work.
-- Default to local-only setup when the user does not need deployment yet. Local development must not require DigitalOcean credentials.
+- Default to local-only setup when the user does not need deployment yet. Local development must not require cloud credentials.
 - Use [docs/LOCAL_DATABASE.md](docs/LOCAL_DATABASE.md) and `docker-compose.yml` as the local PostgreSQL source of truth. The default local database path is Docker Compose, not a native PostgreSQL install.
-- If deployment is requested, use DigitalOcean App Platform as the supported production path. Use DigitalOcean Managed PostgreSQL for production databases; do not use App Platform dev databases for production.
-- For the default DigitalOcean production backend/API service, start with one `apps-s-1vcpu-1gb` App Platform container (`instance_count: 1`) plus the smallest DigitalOcean Managed PostgreSQL production cluster. This keeps the initial backend and database infrastructure around $27/month before taxes, traffic overages, storage, and optional add-ons. `webapp` and fully prerendered `website` output are Static Sites and do not need runtime container sizing. A `website` route with SSR/on-demand rendering or server islands needs a runtime service.
-- Deploy `webapp` and fully prerendered `website` output as DigitalOcean App Platform Static Sites, not App Platform services. They do not get `instance_size_slug` or `instance_count`; static site assets are served through DigitalOcean's global CDN by default. Use an external CDN only when the product needs advanced controls such as bot filtering, custom rate limiting, or geographic traffic rules.
-- For DigitalOcean app specs, use committed `.do/*.yaml.example` templates plus `bun run deploy:do:specs`; generated specs stay in `.scratch/deploy` and must fail on empty values or unresolved placeholders before `doctl apps create`. Concrete App Platform machine defaults live in `scripts/prepare-do-specs.mjs`; update that script and [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) together when changing infrastructure tiers.
+- If deployment is requested, use Railway as the supported production path: one service built from `backend/Dockerfile` plus Railway managed PostgreSQL. Migrations run in the pre-deploy command, so a failed migration fails the deploy instead of releasing a broken API.
+- `webapp` and fully prerendered `website` output are static builds with no runtime container. A `website` route with SSR/on-demand rendering or server islands would need a runtime service.
+- Deployment is configured as code in `railway.json` at the repository root; update it and [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) together when changing build, release, or health-check behavior.
 - Before deployment or cloud-resource updates, verify `git remote -v` and `git status --short --branch`. Deploy only from the intended pushed release branch with a clean worktree; if local changes, untracked files, or branch sync issues are present, stop instead of cleaning, stashing, resetting, or checking out over another session's work.
-- Use DigitalOcean Spaces Standard Storage plus Spaces CDN for persistent files, uploads, and public media. Do not store uploads on the App Platform container filesystem.
+- Use an S3-compatible object store for persistent files, uploads, and public media when the product needs them. Do not store uploads on the container filesystem. MediQaz stores no audio: recordings are discarded after transcription.
 - If the user explicitly chooses Yandex Cloud, use [docs/YANDEX_CLOUD.md](docs/YANDEX_CLOUD.md): Serverless Containers for backend/API, Managed Service for PostgreSQL for production data, Object Storage for files/static sites, and Cloud CDN for public static/media delivery.
-- Explain manual prerequisites only for the active release path: DigitalOcean account, billing/project setup, `doctl auth init`, registry access when using DigitalOcean Container Registry, DigitalOcean Managed PostgreSQL, production domains/DNS, and Expo/EAS/App Store/Google Play accounts when mobile release work is requested.
+- Explain manual prerequisites only for the active release path: Railway account and project, Railway managed PostgreSQL, production domains/DNS, provider keys for Deepgram and Groq, and Expo/EAS/Google Play accounts when mobile release work is requested.
 - The agent may create uncommitted app-local `.env` files from their matching `.env.example` files and generate a local-only `JWT_SECRET`; never commit secrets or print raw secrets in the final report.
 - After setup, run the smallest meaningful validation for the chosen active surfaces and report local URLs, commands run, and anything the user still needs to authorize manually.
 
@@ -82,13 +80,11 @@ If backend/API, full-stack, uploads, or any database-backed validation is active
 - `website` - a separate Astro project for public SSG/SSR pages (landing, content sites, marketplace).
 - `mobile` - Expo + React Native + Expo Router + TanStack Query/Form with SecureStore-backed auth.
 - `packages/contracts` - shared Zod schemas and TypeScript API types.
-- `.do` - committed DigitalOcean App Platform spec templates; generate concrete specs into `.scratch/deploy` with `bun run deploy:do:specs`.
 - `docker-compose.yml` - local PostgreSQL 18 through the official `postgres:18-alpine` image on port `54329`; test runners use a repository-derived port by default, or `POSTGRES_TEST_PORT` when set. PostgreSQL 18 is intentional because the backend schema uses strict database-generated UUIDv7 IDs.
 - `docs/TESTING.md` - the backend, Playwright, and Maestro testing contract.
 - `docs/LOCAL_DATABASE.md` - cross-platform local PostgreSQL setup for Windows, macOS, and Linux.
-- `docs/STORAGE.md` - DigitalOcean Spaces, CDN, uploads, and image/media storage rules.
+- `docs/STORAGE.md` - S3-compatible object storage, CDN, uploads, and image/media rules (deferred until the product needs uploads).
 - `docs/SOCIAL_AUTH.md` - Apple and Google social auth setup for the Expo mobile app.
-- `docs/IAP.md` - App Store and Google Play subscription setup, backend verification, sandbox/internal testing, restore, and production freshness notes.
 - `docs/YANDEX_CLOUD.md` - optional Yandex Cloud deployment path when the user explicitly chooses it.
 
 ## Choosing `webapp` vs `website`
@@ -98,7 +94,7 @@ This template ships two browser surfaces. Putting a feature in the wrong one is 
 - Build it in **`website`** (Astro, static by default, SSR/hybrid only when needed) when pages must be **public and found by search engines or shared with rich link previews**: marketing/landing pages, content sites, blogs, docs, and the public storefront of a **marketplace**. For a marketplace, this usually means the landing page, category/search landing pages, public listing/product pages, SEO metadata, and rich previews.
 - Build it in **`webapp`** (React, client-side rendered) when screens live **behind sign-in and do not need SEO**: login-adjacent app flows after redirect, buyer account, seller/admin panels, checkout/account workflows, dashboards, settings, and authenticated tools. No crawler needs these, so CSR is the simpler, cheaper choice.
 
-Rule of thumb for the agent: *if a page must rank in search or preview nicely when shared, it belongs in `website`; if it is only reachable after login, it belongs in `webapp`.* Real marketplaces normally use **both**: the public catalog lives in `website`, the authenticated app lives in `webapp`, and both reuse the same `@web-app-demo/contracts` schemas. Do not rebuild SEO pages inside `webapp` to "keep everything in one app"; that loses the SEO the product needs. Do not move the full authenticated app into Astro just because the product has public SEO pages.
+Rule of thumb for the agent: *if a page must rank in search or preview nicely when shared, it belongs in `website`; if it is only reachable after login, it belongs in `webapp`.* Real marketplaces normally use **both**: the public catalog lives in `website`, the authenticated app lives in `webapp`, and both reuse the same `@mediqaz/contracts` schemas. Do not rebuild SEO pages inside `webapp` to "keep everything in one app"; that loses the SEO the product needs. Do not move the full authenticated app into Astro just because the product has public SEO pages.
 
 Astro stays the default website stack for this template because it is content-first, static-first, ships little JavaScript by default, and gives agents a clear SEO surface. Choose Next.js only when the project intentionally wants a Vercel-optimized ISR/cache platform as a core product requirement. Treat TanStack Start as an optional future React full-stack path for teams that want one React app with selective SSR; it is not the simple default for non-programmer vibe-coding projects.
 
@@ -193,20 +189,13 @@ EXPO_PUBLIC_API_URL=http://localhost:3000
 EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID=
 EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID=
 EXPO_PUBLIC_GOOGLE_IOS_URL_SCHEME=
-EXPO_PUBLIC_IAP_IOS_MONTHLY_PRODUCT_ID=com.example.app.premium.monthly
-EXPO_PUBLIC_IAP_IOS_YEARLY_PRODUCT_ID=com.example.app.premium.yearly
-EXPO_PUBLIC_IAP_ANDROID_PACKAGE_NAME=com.example.app
-EXPO_PUBLIC_IAP_ANDROID_MONTHLY_PRODUCT_ID=com.example.app.premium
-EXPO_PUBLIC_IAP_ANDROID_MONTHLY_BASE_PLAN_ID=monthly
-EXPO_PUBLIC_IAP_ANDROID_YEARLY_PRODUCT_ID=com.example.app.premium
-EXPO_PUBLIC_IAP_ANDROID_YEARLY_BASE_PLAN_ID=yearly
 ```
 
 Android emulators usually need `http://10.0.2.2:3000` instead of `localhost`.
 
 Mobile Maestro E2E should use a LAN-reachable `EXPO_PUBLIC_API_URL`, a host-reachable `MAESTRO_DEV_SERVER_URL`, and `EXPO_PUBLIC_E2E=1` only for the E2E Metro session. See [docs/TESTING.md](docs/TESTING.md) before adding or running mobile flows.
 
-Test runners use the separate Docker Compose `postgres_test` service and the `TEST_DATABASE_URL` shape from `backend/.env.example`. Webapp Playwright E2E starts `postgres_test`, applies migrations to `web_app_demo_test`, runs the browser flow, and tears down its test database volume by default.
+Test runners use the separate Docker Compose `postgres_test` service and the `TEST_DATABASE_URL` shape from `backend/.env.example`. Webapp Playwright E2E starts `postgres_test`, applies migrations to `mediqaz_test`, runs the browser flow, and tears down its test database volume by default.
 
 ## Workspace Commands
 
@@ -221,10 +210,9 @@ Test runners use the separate Docker Compose `postgres_test` service and the `TE
 - `bun run test` - run contract, backend, webapp, and mobile unit/integration tests.
 - `bun run test:contracts` - run shared Zod contract tests.
 - `bun run test:backend` - run backend unit and integration tests.
-- `bun run test:backend:integration` - run DB-backed auth, billing, and notifications tests through `postgres_test`.
+- `bun run test:backend:integration` - run DB-backed auth and notifications tests through `postgres_test`.
 - `bun run test:webapp` - run webapp client tests.
 - `bun run test:mobile` - run mobile client tests.
-- `bun run deploy:do:specs` - safely generate concrete DigitalOcean specs under `.scratch/deploy`.
 - `bun run e2e:webapp` - run the Playwright auth smoke test through backend + Vite.
 - `bun run e2e:mobile` - run the Maestro auth smoke test against an installed Expo development build and host-reachable Metro URL.
 - `bun run --cwd mobile e2e:maestro:audit` - check the mobile Maestro flow and runner inputs for known flaky patterns.
@@ -237,9 +225,8 @@ Test runners use the separate Docker Compose `postgres_test` service and the `TE
 
 - [backend/README.md](backend/README.md) - API, auth, Prisma, and backend validation.
 - [docs/LOCAL_DATABASE.md](docs/LOCAL_DATABASE.md) - Docker Compose PostgreSQL setup and reset workflow.
-- [docs/STORAGE.md](docs/STORAGE.md) - DigitalOcean Spaces, CDN, uploads, and image/media storage rules.
+- [docs/STORAGE.md](docs/STORAGE.md) - S3-compatible object storage, CDN, uploads, and image/media rules (deferred).
 - [docs/SOCIAL_AUTH.md](docs/SOCIAL_AUTH.md) - Apple and Google mobile social auth setup.
-- [docs/IAP.md](docs/IAP.md) - App Store and Google Play subscription setup and troubleshooting.
 - [docs/YANDEX_CLOUD.md](docs/YANDEX_CLOUD.md) - optional Yandex Cloud deployment path when explicitly selected.
 - [webapp/README.md](webapp/README.md) - CSR browser client setup, env, and Playwright smoke.
 - [mobile/README.md](mobile/README.md) - Expo setup, push notifications, development builds, and Maestro smoke.
@@ -256,7 +243,7 @@ API contracts live in `packages/contracts` and are imported by every active laye
 
 The backend follows the Product Modules flow `transport -> application -> domain/ports -> infrastructure`. Routes own HTTP representation, application services own use cases and orchestration, optional domain code owns pure policies and transitions, and context-specific infrastructure owns Prisma and provider SDKs. Cross-context imports go only through each module's public `index.ts`; API, worker, and cron entrypoints share `src/runtime.ts` for env and Prisma lifecycle.
 
-Keep the default architecture monolithic. For DigitalOcean production, the backend/API default is one `apps-s-1vcpu-1gb` App Platform container so a new project starts inside the expected low-cost budget with Managed PostgreSQL while retaining a clear scale-up path. Add backend worker or scheduled-job components from the same Docker image only when a concrete background or periodic task exists; the deployment generator refuses to deploy the empty worker placeholder. For real-time features, a single backend instance can own its local WebSocket connections. If the backend is horizontally scaled and users connected to different instances must receive the same chat, presence, or live events, add a managed Redis-compatible Pub/Sub broker between instances, using DigitalOcean Managed Valkey on the default path or Yandex Managed Service for Valkey when Yandex Cloud is explicitly selected.
+Keep the default architecture monolithic. In production the backend/API is one Railway service built from `backend/Dockerfile`, paired with Railway managed PostgreSQL, with a clear scale-up path. Add worker or scheduled-job services from the same image only when a concrete background or periodic task exists. For real-time features, a single backend instance can own its local WebSocket connections. If the backend is horizontally scaled and users connected to different instances must receive the same chat, presence, or live events, add a managed Redis-compatible Pub/Sub broker between instances.
 
 Ongoing engineering guidance lives in [AGENTS.md](AGENTS.md), [CLAUDE.md](CLAUDE.md), [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md), [docs/TESTING.md](docs/TESTING.md), and [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md). First-run download and product setup instructions live in this README.
 
@@ -274,5 +261,5 @@ For framework, API, deployment, or testing questions, consult the current upstre
 - Mobile: [Expo docs](https://docs.expo.dev/), [Expo Router docs](https://docs.expo.dev/router/introduction/), [EAS Build docs](https://docs.expo.dev/build/introduction/), [Expo Push setup](https://docs.expo.dev/push-notifications/push-notifications-setup/), [Expo Push sending API](https://docs.expo.dev/push-notifications/sending-notifications/), and [React Native docs](https://reactnative.dev/docs/getting-started)
 - Website: [Astro docs](https://docs.astro.build/en/getting-started/)
 - Local infrastructure: [Docker Compose docs](https://docs.docker.com/compose/) and [PostgreSQL Docker Official Image](https://hub.docker.com/_/postgres)
-- Deployment and storage: [DigitalOcean App Platform](https://docs.digitalocean.com/products/app-platform/), [DigitalOcean App specs](https://docs.digitalocean.com/products/app-platform/reference/app-spec/), [DigitalOcean Static Sites](https://docs.digitalocean.com/products/app-platform/how-to/manage-static-sites/), [DigitalOcean Managed Databases in App Platform](https://docs.digitalocean.com/products/app-platform/how-to/manage-databases/), [DigitalOcean Valkey](https://docs.digitalocean.com/products/databases/valkey/), [DigitalOcean Dockerfile builds](https://docs.digitalocean.com/products/app-platform/reference/dockerfile/), [DigitalOcean Bun buildpack](https://docs.digitalocean.com/products/app-platform/reference/buildpacks/bun/), [doctl](https://docs.digitalocean.com/reference/doctl/), [doctl apps spec validate](https://docs.digitalocean.com/reference/doctl/reference/apps/spec/validate/), [DigitalOcean Container Registry](https://docs.digitalocean.com/products/container-registry/), [DigitalOcean Spaces](https://docs.digitalocean.com/products/spaces/), [DigitalOcean Spaces CDN](https://docs.digitalocean.com/products/spaces/how-to/enable-cdn/), and [external CDN in front of App Platform](https://docs.digitalocean.com/products/app-platform/how-to/configure-external-cdn/)
+- Deployment: [Railway config as code](https://docs.railway.com/reference/config-as-code), [Railway Dockerfile builds](https://docs.railway.com/guides/dockerfiles), [Railway PostgreSQL](https://docs.railway.com/guides/postgresql), [Railway variables](https://docs.railway.com/guides/variables), and [Railway cron jobs](https://docs.railway.com/reference/cron-jobs)
 - Optional Yandex Cloud path: [Yandex Cloud CLI](https://yandex.cloud/en/docs/cli/quickstart), [Yandex Serverless Containers](https://yandex.cloud/en/docs/serverless-containers/), [Yandex Container Registry](https://yandex.cloud/en/docs/container-registry/quickstart), [Yandex Managed PostgreSQL](https://yandex.cloud/en/docs/managed-postgresql/), [Yandex Managed Service for Valkey](https://yandex.cloud/en/docs/managed-redis/), [Yandex Object Storage static hosting](https://yandex.cloud/en/docs/storage/operations/hosting/setup), [Yandex Object Storage AWS CLI](https://yandex.cloud/en/docs/storage/tools/aws-cli), [Yandex Cloud CDN](https://yandex.cloud/en/docs/cdn/concepts/), and [Yandex Cloud Marketplace Image Resizer](https://yandex.cloud/en/marketplace/products/yc/image-resizer)

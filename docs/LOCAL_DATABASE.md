@@ -57,7 +57,7 @@ environment files:
 docker compose --env-file backend/.env pull postgres
 docker compose --env-file backend/.env up -d postgres
 docker compose --env-file backend/.env ps postgres
-docker compose --env-file backend/.env exec postgres pg_isready -U superuser -d web_app_demo
+docker compose --env-file backend/.env exec postgres pg_isready -U superuser -d mediqaz
 ```
 
 The development database is:
@@ -65,10 +65,10 @@ The development database is:
 ```text
 host: localhost
 port: 54329
-database: web_app_demo
+database: mediqaz
 user: superuser
 password: superpassword
-DATABASE_URL: postgresql://superuser:superpassword@localhost:54329/web_app_demo?schema=public
+DATABASE_URL: postgresql://superuser:superpassword@localhost:54329/mediqaz?schema=public
 ```
 
 Then apply Prisma migrations:
@@ -96,10 +96,10 @@ Manual default connection:
 ```text
 host: localhost
 port: 54330
-database: web_app_demo_test
+database: mediqaz_test
 user: superuser
 password: superpassword
-TEST_DATABASE_URL: postgresql://superuser:superpassword@localhost:54330/web_app_demo_test?schema=public
+TEST_DATABASE_URL: postgresql://superuser:superpassword@localhost:54330/mediqaz_test?schema=public
 ```
 
 Automated test runners normally set a repository-derived `POSTGRES_TEST_PORT` and derive `TEST_DATABASE_URL` from it so multiple template checkouts can run in parallel. Set `POSTGRES_TEST_PORT` only when a fixed test database port is required.

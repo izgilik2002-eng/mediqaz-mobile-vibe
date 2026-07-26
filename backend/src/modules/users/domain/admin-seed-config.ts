@@ -1,4 +1,4 @@
-import { emailSchema, passwordSchema } from '@web-app-demo/contracts'
+import { emailSchema, passwordSchema } from '@mediqaz/contracts'
 
 const knownBootstrapPasswordPlaceholders = new Set([
   'change-me',

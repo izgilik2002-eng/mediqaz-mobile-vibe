@@ -1,6 +1,6 @@
 import { z } from 'zod'
 
-import { subscriptionSnapshotSchema } from './iap'
+import { doctorSpecialtySchema } from './consultations'
 import { expoPushTokenSchema } from './notifications'
 
 const displayNameSchema = z
@@ -22,8 +22,10 @@ export const userSchema = z.object({
   email: emailSchema,
   displayName: z.string().nullable(),
   role: userRoleSchema,
+  /** Set by an administrator; false until a doctor is cleared to record. */
+  isApproved: z.boolean(),
+  specialty: doctorSpecialtySchema.nullable(),
   createdAt: z.string().datetime(),
-  subscription: subscriptionSnapshotSchema,
 })
 
 export const registerRequestSchema = z.object({

@@ -12,7 +12,6 @@ import {
   markPendingLogout,
   setStoredRefreshToken,
 } from '@/features/auth';
-import { IapProvider } from '@/features/billing';
 import {
   PushNotificationsProvider,
   PushRegistrationCoordinator,
@@ -65,13 +64,11 @@ export function AppProviders({ children }: PropsWithChildren) {
         logoutSupport={logoutSupport}
         session={session}
       >
-        <IapProvider api={apis.billing}>
-          <PushNotificationsProvider
-            api={apis.notifications}
-            registrationCoordinator={pushRegistrationCoordinator}>
-            {children}
-          </PushNotificationsProvider>
-        </IapProvider>
+        <PushNotificationsProvider
+          api={apis.notifications}
+          registrationCoordinator={pushRegistrationCoordinator}>
+          {children}
+        </PushNotificationsProvider>
       </AuthProvider>
     </QueryClientProvider>
   );

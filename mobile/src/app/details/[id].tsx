@@ -26,10 +26,6 @@ export default function DetailsScreen() {
     return <Redirect href="/" />;
   }
 
-  if (!auth.user.subscription.isActive) {
-    return <Redirect href={'/paywall' as Href} />;
-  }
-
   return (
     <ScreenShell
       backButton="auto"

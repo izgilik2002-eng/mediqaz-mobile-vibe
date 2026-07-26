@@ -9,7 +9,7 @@ import type {
   LoginRequest,
   MeResponse,
   RegisterRequest,
-} from '@web-app-demo/contracts'
+} from '@mediqaz/contracts'
 
 import type { AuthApi } from './api'
 

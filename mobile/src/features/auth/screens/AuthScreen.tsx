@@ -4,7 +4,7 @@ import {
   registerRequestSchema,
   type LoginRequest,
   type RegisterRequest,
-} from '@web-app-demo/contracts';
+} from '@mediqaz/contracts';
 import { Redirect, type Href } from 'expo-router';
 import { useState } from 'react';
 
@@ -93,7 +93,7 @@ export function AuthScreen() {
   }
 
   if (auth.user) {
-    return <Redirect href={(auth.user.subscription.isActive ? '/components' : '/paywall') as Href} />;
+    return <Redirect href={'/components' as Href} />;
   }
 
   return (

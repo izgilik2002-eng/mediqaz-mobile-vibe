@@ -6,7 +6,7 @@ import type { AppEnv } from '../../env'
 
 const env: AppEnv = {
   PORT: 3000,
-  DATABASE_URL: 'postgresql://superuser:superpassword@localhost:54329/web_app_demo',
+  DATABASE_URL: 'postgresql://superuser:superpassword@localhost:54329/mediqaz',
   JWT_SECRET: 'test-route-secret-at-least-thirty-two-chars-123',
   CORS_ORIGINS: ['https://web.example.com'],
   ACCESS_TOKEN_TTL_SECONDS: 60,
@@ -17,9 +17,6 @@ const env: AppEnv = {
   AUTH_BODY_LIMIT_BYTES: 64 * 1024,
   AUTH_RATE_LIMIT_MAX: 60,
   AUTH_RATE_LIMIT_WINDOW_SECONDS: 60,
-  IAP_BODY_LIMIT_BYTES: 64 * 1024,
-  IAP_RATE_LIMIT_MAX: 60,
-  IAP_RATE_LIMIT_WINDOW_SECONDS: 60,
   SHUTDOWN_GRACE_SECONDS: 20,
   TRUST_PROXY: true,
   TRUSTED_PROXY_CLIENT_IP_HEADER: 'do-connecting-ip',
@@ -29,12 +26,13 @@ const env: AppEnv = {
   SPACES_UPLOAD_URL_TTL_SECONDS: 900,
   SPACES_DOWNLOAD_URL_TTL_SECONDS: 300,
   SPACES_PUBLIC_CACHE_CONTROL: 'public, max-age=31536000, immutable',
-  APPLE_IAP_ENVIRONMENT: 'Sandbox',
-  APPLE_IAP_PRODUCT_IDS: [],
   APPLE_AUTH_JWKS_TIMEOUT_MS: 5000,
   GOOGLE_AUTH_CLIENT_IDS: [],
-  GOOGLE_PLAY_PRODUCT_IDS: [],
-  GOOGLE_PLAY_BASE_PLAN_IDS: [],
+  TRANSCRIPTION_GRANT_TTL_SECONDS: 300,
+  GROQ_MAX_CONCURRENT: 1,
+  CONSULTATION_BODY_LIMIT_BYTES: 512 * 1024,
+  CONSULTATION_RATE_LIMIT_MAX: 60,
+  CONSULTATION_RATE_LIMIT_WINDOW_SECONDS: 60,
 }
 
 describe('auth routes', () => {
@@ -110,7 +108,7 @@ describe('auth routes', () => {
 
   test('rejects all secure cookie auth writes from untrusted origins before auth service work', async () => {
     const app = createApp({ env, prisma: {} as DbClient })
-    const refreshCookie = `web_app_demo_refresh=${'r'.repeat(32)}`
+    const refreshCookie = `mediqaz_refresh=${'r'.repeat(32)}`
 
     const untrustedLogin = await app.request('/api/auth/login', {
       method: 'POST',

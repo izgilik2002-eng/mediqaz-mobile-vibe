@@ -1,5 +1,4 @@
 import { AuthApi, type AuthTransportKind } from '@/features/auth';
-import { BillingApi } from '@/features/billing';
 import { NotificationsApi } from '@/features/notifications';
 import { ApiTransport } from '@/platform/api';
 import { SessionController } from '@/platform/session';
@@ -34,7 +33,6 @@ export function createMobileApis(input: {
 
   return {
     auth,
-    billing: new BillingApi(transport),
     notifications: new NotificationsApi(transport),
   };
 }

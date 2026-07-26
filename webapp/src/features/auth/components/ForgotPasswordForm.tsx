@@ -1,6 +1,6 @@
 import { useForm } from '@tanstack/react-form'
 import { Link } from '@tanstack/react-router'
-import { passwordResetRequestSchema } from '@web-app-demo/contracts'
+import { passwordResetRequestSchema } from '@mediqaz/contracts'
 import { useId, useState } from 'react'
 
 import { Typography } from '@/components/typography'

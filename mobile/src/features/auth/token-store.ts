@@ -9,7 +9,7 @@ import {
 } from './browser-logout-intent';
 import { browserSessionCoordinator } from './browser-session-coordinator';
 
-const refreshTokenKey = 'web_app_demo_refresh_token';
+const refreshTokenKey = 'mediqaz_refresh_token';
 const pendingLogoutValue = 'pending-v1';
 
 export async function getStoredRefreshToken() {

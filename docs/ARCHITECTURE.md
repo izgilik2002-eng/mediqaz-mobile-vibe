@@ -51,11 +51,11 @@ Application services must own real use-case orchestration through narrow capabil
 
 The default runtime shape is a modular monolith: one backend codebase, one database, shared contracts, and clear feature boundaries inside the repository. The backend can expose separate API, worker, and cron entrypoints while still sharing Prisma schema, env validation, services, and contracts. Do not add queues, brokers, or extra infrastructure until the product has a concrete need that the monolith cannot meet clearly.
 
-On the default DigitalOcean production path, run the backend/API as one `apps-s-1vcpu-1gb` App Platform container so the starting infrastructure stays inside the low-cost budget when paired with the smallest production Managed PostgreSQL cluster. Add App Platform worker or scheduled-job components from the same `backend/Dockerfile` only when the product has a concrete background or periodic task. `webapp` and fully prerendered `website` output remain App Platform Static Site components and do not have runtime container sizes. A `website` route with SSR/on-demand rendering or server islands needs a runtime service.
+In production the backend/API runs as one Railway service built from `backend/Dockerfile`, paired with Railway managed PostgreSQL. Add worker or scheduled-job services from the same image only when the product has a concrete background or periodic task. `webapp` and fully prerendered `website` output are static builds and have no runtime container. A `website` route with SSR/on-demand rendering or server islands would need a runtime service.
 
 For real-time features such as chat, presence, collaboration, live notifications, or activity feeds, start with the same backend service. A single instance can keep an in-memory registry of its own WebSocket connections. Once the backend runs multiple instances, in-memory fanout is no longer enough: one user may be connected to instance A while another is connected to instance B. At that point, add a managed Redis-compatible Pub/Sub broker between backend instances so each instance can publish domain events and subscribe to events it must deliver to its local sockets.
 
-On the default DigitalOcean path, use DigitalOcean Managed Valkey for this broker. On the optional Yandex Cloud path, use Yandex Managed Service for Valkey. Add this infrastructure only when horizontal scaling and cross-instance WebSocket/SSE delivery are actually required; it is not part of the baseline local setup.
+Use a managed Redis-compatible service for this broker. Add it only when horizontal scaling and cross-instance WebSocket/SSE delivery are actually required; it is not part of the baseline setup.
 
 Valkey Pub/Sub is only a fanout mechanism. Keep durable chat messages, notifications, collaboration state, and audit-relevant events in PostgreSQL; publish compact event identifiers after commits; and make clients recover by reconnecting and refetching from the API after missed realtime messages.
 
@@ -100,13 +100,13 @@ send-fence budget. They then revoke every session and push token atomically.
 
 ## Frontend
 
-There are two browser surfaces, split by whether the pages need SEO. `website` (Astro, SSG by default, SSR/hybrid only when needed) owns public, search-indexable, and link-previewed pages: landing, marketing, content, and the public catalog of a storefront or marketplace. `webapp` (React CSR) owns screens that live behind sign-in and need no SEO: buyer account, seller/admin panels, checkout/account workflows, dashboards, settings, and authenticated tools. A marketplace normally uses both surfaces, sharing `@web-app-demo/contracts`. The native mobile app is a third client that consumes the same contracts. The decision rule the installing agent should apply is in the root [README.md](../README.md) under "Choosing `webapp` vs `website`".
+There are two browser surfaces, split by whether the pages need SEO. `website` (Astro, SSG by default, SSR/hybrid only when needed) owns public, search-indexable, and link-previewed pages: landing, marketing, content, and the public catalog of a storefront or marketplace. `webapp` (React CSR) owns screens that live behind sign-in and need no SEO: buyer account, seller/admin panels, checkout/account workflows, dashboards, settings, and authenticated tools. A marketplace normally uses both surfaces, sharing `@mediqaz/contracts`. The native mobile app is a third client that consumes the same contracts. The decision rule the installing agent should apply is in the root [README.md](../README.md) under "Choosing `webapp` vs `website`".
 
 The webapp and mobile app follow the same client rules:
 
 - TanStack Query owns server state.
 - TanStack Form owns form state.
-- Zod schemas come from `@web-app-demo/contracts`.
+- Zod schemas come from `@mediqaz/contracts`.
 - `src/platform/api` owns endpoint-agnostic fetch, base URL handling, response parsing, and the shared API error.
 - `src/features/<context>` owns endpoint paths, schemas, server-state adapters, providers, and product UI for that context.
 - Routes and `src/main.tsx` are thin composition files and import features through their public `index.ts`.
@@ -139,7 +139,7 @@ Tailwind components. `mobile/src/components/ui` is the complete generic native
 primitive library and owns the canonical color, radius, spacing, typography,
 and interaction tokens. `mobile/src/components/dashboard` owns closed shared
 screen/header/card/state/navigation compositions. Feature-owned auth and
-billing components accept semantic data, state, and callbacks; routes only
+feature components accept semantic data, state, and callbacks; routes only
 compose them. Phones keep native bottom tabs, while wide Expo Web uses the
 shared side-rail/inset shell. Both navigation modes expose the same active,
 focus, pressed, disabled, and accessible-name semantics.
@@ -148,13 +148,13 @@ Do not create a new form, query, auth, or API abstraction until the existing pat
 
 `website` is a separate Astro workspace for public SSG/SSR pages. Pages prerender to static HTML by default. Marketplace freshness should climb this ladder: SSG plus rebuild/redeploy for durable listing/category/content changes; cached on-demand/SSR routes with CDN headers such as `stale-while-revalidate` when freshness matters more than a full redeploy cycle; Astro server islands for non-SEO-critical dynamic or personalized fragments; uncached or personalized SSR only for request-specific pages such as live search, personalized public views, or inventory/price pages where stale HTML is unacceptable. On-demand/SSR routes and server islands both require an Astro adapter and a runtime-capable deployment; they do not work from a pure Static Site host or object-storage static website. Server islands on cached pages or rolling deploys require a stable secret `ASTRO_KEY` shared by build and runtime environments; never commit it, expose it as `PUBLIC_*`, or bake it into static output. Shared CDN caching is only for anonymous, public-equivalent HTML; auth-dependent or personalized responses must use `private`/`no-store` or a deliberate `Vary: Cookie`/`Authorization` strategy, and `ASTRO_KEY` is not a cache privacy boundary.
 
-SEO-critical content must be present in the initial HTML: titles, descriptions, canonical URLs, social preview tags, product/category names, indexable descriptions, and public prices when snippets need them. Client islands and server islands may enhance the page, but they must not be the only source of SEO-critical content. `website` does not own the full auth flow and should not duplicate the CSR client from `webapp`; auth in `website` is limited to public-site needs such as a logged-in header state or lightweight actions. If the website starts reading API data or shared DTOs, connect `@web-app-demo/contracts` and validate producer/consumer sides the same way as `webapp` and `mobile`.
+SEO-critical content must be present in the initial HTML: titles, descriptions, canonical URLs, social preview tags, product/category names, indexable descriptions, and public prices when snippets need them. Client islands and server islands may enhance the page, but they must not be the only source of SEO-critical content. `website` does not own the full auth flow and should not duplicate the CSR client from `webapp`; auth in `website` is limited to public-site needs such as a logged-in header state or lightweight actions. If the website starts reading API data or shared DTOs, connect `@mediqaz/contracts` and validate producer/consumer sides the same way as `webapp` and `mobile`.
 
 Astro remains the default website stack because it is content-first, static-first, low-JS by default, and gives agents a clear SEO surface. Choose Next.js only when a project intentionally wants a Vercel-optimized ISR/cache platform. Treat TanStack Start as an optional future React full-stack path for teams that want one React app with selective SSR, not as the baseline for non-programmer vibe-coding projects.
 
 ## Testing
 
-Backend unit/integration tests verify auth, users/admin RBAC, billing, and notifications behavior at their owning layers. Webapp E2E uses Playwright and starts a real backend + Vite through `webServer`, including a seeded administrator and session-revoking role promotion. Mobile E2E uses Maestro and stable React Native `testID` selectors.
+Backend unit/integration tests verify auth, users/admin RBAC, and notifications behavior at their owning layers. Webapp E2E uses Playwright and starts a real backend + Vite through `webServer`, including a seeded administrator and session-revoking role promotion. Mobile E2E uses Maestro and stable React Native `testID` selectors.
 
 Client E2E in this template is a happy-path smoke layer, not the place for large validation matrices. Keep negative payloads, password/JWT/session rules, and error-shape checks in backend tests. Add fast client-level tests for form validation and API state edge cases when those surfaces grow.
 
@@ -180,7 +180,7 @@ bun run --cwd backend prisma:deploy
 
 ## Local Infrastructure
 
-Local PostgreSQL is provided by Docker Compose, not by a native database install. The development service uses `postgres:18-alpine`, exposes `web_app_demo` on host port `54329`, and stores data in the `postgres_18_data` volume. The test service uses the same image with database `web_app_demo_test`; automated runners set `POSTGRES_TEST_PORT` to a repository-derived port when they need isolation. PostgreSQL 18 is intentional here because the backend schema relies on the native `uuidv7()` database function.
+Local PostgreSQL is provided by Docker Compose, not by a native database install. The development service uses `postgres:18-alpine`, exposes `mediqaz` on host port `54329`, and stores data in the `postgres_18_data` volume. The test service uses the same image with database `mediqaz_test`; automated runners set `POSTGRES_TEST_PORT` to a repository-derived port when they need isolation. PostgreSQL 18 is intentional here because the backend schema relies on the native `uuidv7()` database function.
 
 Keep `docker-compose.yml`, `backend/.env.example`, and [LOCAL_DATABASE.md](LOCAL_DATABASE.md) aligned when changing local database names, ports, credentials, image tags, or volume paths.
 

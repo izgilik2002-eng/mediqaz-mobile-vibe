@@ -7,7 +7,7 @@ import { loadBackgroundEnv, loadEnv } from './env'
 describe('loadEnv', () => {
   test('parses defaults and comma-separated origins', () => {
     const env = loadEnv({
-      DATABASE_URL: 'postgresql://superuser:superpassword@localhost:54329/web_app_demo',
+      DATABASE_URL: 'postgresql://superuser:superpassword@localhost:54329/mediqaz',
       JWT_SECRET: '12345678901234567890123456789012',
       CORS_ORIGINS: 'http://localhost:5173, http://localhost:8081',
     })
@@ -23,21 +23,16 @@ describe('loadEnv', () => {
     expect(env.SPACES_UPLOAD_URL_TTL_SECONDS).toBe(900)
     expect(env.SPACES_DOWNLOAD_URL_TTL_SECONDS).toBe(300)
     expect(env.SPACES_PUBLIC_CACHE_CONTROL).toBe('public, max-age=31536000, immutable')
-    expect(env.APPLE_IAP_ENVIRONMENT).toBe('Sandbox')
-    expect(env.APPLE_IAP_PRODUCT_IDS).toEqual([])
     expect(env.APPLE_AUTH_BUNDLE_ID).toBeUndefined()
     expect(env.APPLE_AUTH_JWKS_TIMEOUT_MS).toBe(5000)
     expect(env.GOOGLE_AUTH_CLIENT_IDS).toEqual([])
-    expect(env.GOOGLE_PLAY_PACKAGE_NAME).toBeUndefined()
-    expect(env.GOOGLE_PLAY_PRODUCT_IDS).toEqual([])
-    expect(env.GOOGLE_PLAY_BASE_PLAN_IDS).toEqual([])
     expect(env.ENABLE_TEST_PUSH).toBe(false)
   })
 
   test('loads background entrypoints without exposing the API signing key', () => {
     const env = loadBackgroundEnv({
       NODE_ENV: 'production',
-      DATABASE_URL: 'postgresql://superuser:superpassword@localhost:54329/web_app_demo',
+      DATABASE_URL: 'postgresql://superuser:superpassword@localhost:54329/mediqaz',
       JWT_SECRET: 'fedcba9876543210'.repeat(4),
     })
 
@@ -45,28 +40,15 @@ describe('loadEnv', () => {
     expect(env.CORS_ORIGINS).toEqual(['https://background.invalid'])
   })
 
-  test('parses backend .env.example with optional blank App Store fields', () => {
+  test('parses backend .env.example with optional blank provider fields', () => {
     const env = loadEnv(parseEnvExample())
-
-    expect(env.APPLE_IAP_BUNDLE_ID).toBeUndefined()
-    expect(env.APPLE_IAP_APP_APPLE_ID).toBeUndefined()
-    expect(env.APPLE_IAP_ISSUER_ID).toBeUndefined()
     expect(env.APPLE_AUTH_BUNDLE_ID).toBeUndefined()
     expect(env.GOOGLE_AUTH_CLIENT_IDS).toEqual([])
-    expect(env.APPLE_IAP_PRODUCT_IDS).toEqual([
-      'com.example.app.premium.monthly',
-      'com.example.app.premium.yearly',
-    ])
-    expect(env.GOOGLE_PLAY_PACKAGE_NAME).toBeUndefined()
-    expect(env.GOOGLE_PLAY_PRODUCT_IDS).toEqual([
-      'com.example.app.premium',
-    ])
-    expect(env.GOOGLE_PLAY_BASE_PLAN_IDS).toEqual(['monthly', 'yearly'])
   })
 
   test('parses social auth provider configuration', () => {
     const env = loadEnv({
-      DATABASE_URL: 'postgresql://superuser:superpassword@localhost:54329/web_app_demo',
+      DATABASE_URL: 'postgresql://superuser:superpassword@localhost:54329/mediqaz',
       JWT_SECRET: '12345678901234567890123456789012',
       APPLE_AUTH_BUNDLE_ID: 'com.example.app',
       APPLE_AUTH_JWKS_TIMEOUT_MS: '8000',
@@ -81,21 +63,21 @@ describe('loadEnv', () => {
   test('requires complete DigitalOcean Spaces configuration when storage is enabled', () => {
     expect(() =>
       loadEnv({
-        DATABASE_URL: 'postgresql://superuser:superpassword@localhost:54329/web_app_demo',
+        DATABASE_URL: 'postgresql://superuser:superpassword@localhost:54329/mediqaz',
         JWT_SECRET: '12345678901234567890123456789012',
         SPACES_BUCKET: 'uploads',
       }),
     ).toThrow()
     expect(() =>
       loadEnv({
-        DATABASE_URL: 'postgresql://superuser:superpassword@localhost:54329/web_app_demo',
+        DATABASE_URL: 'postgresql://superuser:superpassword@localhost:54329/mediqaz',
         JWT_SECRET: '12345678901234567890123456789012',
         SPACES_CDN_BASE_URL: 'https://images.example.com',
       }),
     ).toThrow()
 
     const env = loadEnv({
-      DATABASE_URL: 'postgresql://superuser:superpassword@localhost:54329/web_app_demo',
+      DATABASE_URL: 'postgresql://superuser:superpassword@localhost:54329/mediqaz',
       JWT_SECRET: '12345678901234567890123456789012',
       SPACES_REGION: 'nyc3',
       SPACES_BUCKET: 'uploads',
@@ -114,14 +96,14 @@ describe('loadEnv', () => {
     expect(() =>
       loadEnv({
         NODE_ENV: 'production',
-        DATABASE_URL: 'postgresql://superuser:superpassword@localhost:54329/web_app_demo',
+        DATABASE_URL: 'postgresql://superuser:superpassword@localhost:54329/mediqaz',
         JWT_SECRET: 'replace-with-at-least-32-random-characters',
       }),
     ).toThrow('JWT_SECRET')
 
     expect(() =>
       loadEnv({
-        DATABASE_URL: 'postgresql://superuser:superpassword@localhost:54329/web_app_demo',
+        DATABASE_URL: 'postgresql://superuser:superpassword@localhost:54329/mediqaz',
         JWT_SECRET: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
         COOKIE_SECURE: 'true',
         CORS_ORIGINS: 'https://web.example.com',
@@ -130,7 +112,7 @@ describe('loadEnv', () => {
 
     expect(() =>
       loadEnv({
-        DATABASE_URL: 'postgresql://superuser:superpassword@localhost:54329/web_app_demo',
+        DATABASE_URL: 'postgresql://superuser:superpassword@localhost:54329/mediqaz',
         JWT_SECRET: 'a-memorable-human-secret-phrase-that-is-long-enough-to-pass',
         COOKIE_SECURE: 'true',
         CORS_ORIGINS: 'https://web.example.com',
@@ -141,7 +123,7 @@ describe('loadEnv', () => {
   test('requires generated secrets, secure cookies, and HTTPS origins in production', () => {
     const productionBase = {
       NODE_ENV: 'production',
-      DATABASE_URL: 'postgresql://superuser:superpassword@localhost:54329/web_app_demo',
+      DATABASE_URL: 'postgresql://superuser:superpassword@localhost:54329/mediqaz',
       JWT_SECRET: '0123456789abcdef'.repeat(4),
       COOKIE_SECURE: 'true',
       CORS_ORIGINS: 'https://web.example.com',
@@ -157,7 +139,7 @@ describe('loadEnv', () => {
 
   test('rejects unsafe production CORS origins', () => {
     const baseEnv = {
-      DATABASE_URL: 'postgresql://superuser:superpassword@localhost:54329/web_app_demo',
+      DATABASE_URL: 'postgresql://superuser:superpassword@localhost:54329/mediqaz',
       JWT_SECRET: '12345678901234567890123456789012',
     }
 
@@ -191,104 +173,9 @@ describe('loadEnv', () => {
     ).toThrow('CORS_ORIGINS')
   })
 
-  test('requires complete App Store IAP verification config when enabled', () => {
-    const baseEnv = {
-      DATABASE_URL: 'postgresql://superuser:superpassword@localhost:54329/web_app_demo',
-      JWT_SECRET: '12345678901234567890123456789012',
-    }
-
-    expect(() =>
-      loadEnv({
-        ...baseEnv,
-        APPLE_IAP_BUNDLE_ID: 'com.example.app',
-      }),
-    ).toThrow('APPLE_IAP_ISSUER_ID')
-
-    expect(() =>
-      loadEnv({
-        ...baseEnv,
-        APPLE_IAP_BUNDLE_ID: 'com.example.app',
-        APPLE_IAP_ENVIRONMENT: 'Production',
-        APPLE_IAP_ISSUER_ID: 'issuer-id',
-        APPLE_IAP_KEY_ID: 'key-id',
-        APPLE_IAP_PRIVATE_KEY_BASE64: 'private-key',
-      }),
-    ).toThrow('APPLE_IAP_APP_APPLE_ID')
-
-    expect(() =>
-      loadEnv({
-        ...baseEnv,
-        APPLE_IAP_BUNDLE_ID: 'com.example.app',
-        APPLE_IAP_ISSUER_ID: 'issuer-id',
-        APPLE_IAP_KEY_ID: 'key-id',
-        APPLE_IAP_PRIVATE_KEY_BASE64: 'private-key',
-      }),
-    ).toThrow('APPLE_IAP_PRODUCT_IDS')
-
-    const env = loadEnv({
-      ...baseEnv,
-      APPLE_IAP_BUNDLE_ID: 'com.example.app',
-      APPLE_IAP_ISSUER_ID: 'issuer-id',
-      APPLE_IAP_KEY_ID: 'key-id',
-      APPLE_IAP_PRIVATE_KEY_BASE64: 'private-key',
-      APPLE_IAP_PRODUCT_IDS: 'premium_monthly, premium_yearly',
-    })
-
-    expect(env.APPLE_IAP_PRODUCT_IDS).toEqual(['premium_monthly', 'premium_yearly'])
-  })
-
-  test('requires complete Google Play IAP verification config when enabled', () => {
-    const baseEnv = {
-      DATABASE_URL: 'postgresql://superuser:superpassword@localhost:54329/web_app_demo',
-      JWT_SECRET: '12345678901234567890123456789012',
-    }
-
-    expect(() =>
-      loadEnv({
-        ...baseEnv,
-        GOOGLE_PLAY_PACKAGE_NAME: 'com.example.app',
-      }),
-    ).toThrow('GOOGLE_PLAY_SERVICE_ACCOUNT_JSON_BASE64')
-
-    expect(() =>
-      loadEnv({
-        ...baseEnv,
-        GOOGLE_PLAY_SERVICE_ACCOUNT_JSON_BASE64: Buffer.from(JSON.stringify({ client_email: 'iap@example.com' })).toString('base64'),
-      }),
-    ).toThrow('GOOGLE_PLAY_PACKAGE_NAME')
-
-    expect(() =>
-      loadEnv({
-        ...baseEnv,
-        GOOGLE_PLAY_PACKAGE_NAME: 'com.example.app',
-        GOOGLE_PLAY_SERVICE_ACCOUNT_JSON_BASE64: Buffer.from(JSON.stringify({ client_email: 'iap@example.com' })).toString('base64'),
-      }),
-    ).toThrow('GOOGLE_PLAY_PRODUCT_IDS')
-
-    expect(() =>
-      loadEnv({
-        ...baseEnv,
-        GOOGLE_PLAY_PACKAGE_NAME: 'com.example.app',
-        GOOGLE_PLAY_SERVICE_ACCOUNT_JSON_BASE64: Buffer.from(JSON.stringify({ client_email: 'iap@example.com' })).toString('base64'),
-        GOOGLE_PLAY_PRODUCT_IDS: 'premium',
-      }),
-    ).toThrow('GOOGLE_PLAY_BASE_PLAN_IDS')
-
-    const env = loadEnv({
-      ...baseEnv,
-      GOOGLE_PLAY_PACKAGE_NAME: 'com.example.app',
-      GOOGLE_PLAY_SERVICE_ACCOUNT_JSON_BASE64: Buffer.from(JSON.stringify({ client_email: 'iap@example.com' })).toString('base64'),
-      GOOGLE_PLAY_PRODUCT_IDS: 'premium',
-      GOOGLE_PLAY_BASE_PLAN_IDS: 'monthly, yearly',
-    })
-
-    expect(env.GOOGLE_PLAY_PRODUCT_IDS).toEqual(['premium'])
-    expect(env.GOOGLE_PLAY_BASE_PLAN_IDS).toEqual(['monthly', 'yearly'])
-  })
-
   test('requires WEBAPP_ORIGIN to be an HTTP origin and HTTPS in production', () => {
     const baseEnv = {
-      DATABASE_URL: 'postgresql://superuser:superpassword@localhost:54329/web_app_demo',
+      DATABASE_URL: 'postgresql://superuser:superpassword@localhost:54329/mediqaz',
       JWT_SECRET: '12345678901234567890123456789012',
     }
 
@@ -313,7 +200,7 @@ describe('loadEnv', () => {
   test('keeps absolute session lifetime at least as long as refresh lifetime', () => {
     expect(() =>
       loadEnv({
-        DATABASE_URL: 'postgresql://superuser:superpassword@localhost:54329/web_app_demo',
+        DATABASE_URL: 'postgresql://superuser:superpassword@localhost:54329/mediqaz',
         JWT_SECRET: '12345678901234567890123456789012',
         REFRESH_TOKEN_TTL_DAYS: '30',
         SESSION_ABSOLUTE_TTL_DAYS: '29',
@@ -324,7 +211,7 @@ describe('loadEnv', () => {
   test('bounds refresh replay tolerance to a short window', () => {
     expect(() =>
       loadEnv({
-        DATABASE_URL: 'postgresql://superuser:superpassword@localhost:54329/web_app_demo',
+        DATABASE_URL: 'postgresql://superuser:superpassword@localhost:54329/mediqaz',
         JWT_SECRET: '12345678901234567890123456789012',
         REFRESH_REUSE_GRACE_SECONDS: '61',
       }),
@@ -333,7 +220,7 @@ describe('loadEnv', () => {
 
   test('requires an explicit client IP header when a trusted proxy is enabled', () => {
     const baseEnv = {
-      DATABASE_URL: 'postgresql://superuser:superpassword@localhost:54329/web_app_demo',
+      DATABASE_URL: 'postgresql://superuser:superpassword@localhost:54329/mediqaz',
       JWT_SECRET: '12345678901234567890123456789012',
       TRUST_PROXY: 'true',
     }

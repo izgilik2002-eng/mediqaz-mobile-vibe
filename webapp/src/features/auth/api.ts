@@ -17,7 +17,7 @@ import {
   type PasswordResetRequest,
   type PasswordResetRequestResponse,
   type RegisterRequest,
-} from '@web-app-demo/contracts'
+} from '@mediqaz/contracts'
 import type { z } from 'zod'
 import { ApiRequestError, HttpClient, type HttpRequestOptions } from '@/platform/api'
 import {

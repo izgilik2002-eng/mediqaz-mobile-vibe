@@ -45,17 +45,11 @@ test('registers, restores the session, opens protected UI, and logs out', async 
   await expect(page.getByRole('link', { name: 'Dashboard' })).toHaveCount(0)
   await expect(page.getByRole('link', { name: 'Users' })).toHaveCount(0)
   await expect(page.getByRole('main').getByText(email, { exact: true })).toBeVisible()
-  await expect(page.getByRole('main').getByText('Subscription', { exact: true })).toBeVisible()
-  await expect(page.getByRole('main').getByText('Premium · Inactive', { exact: true })).toBeVisible()
-  await expect(
-    page.getByRole('main').getByText('No store subscription is currently linked.', {
-      exact: true,
-    }),
-  ).toBeVisible()
+  await expect(page.getByRole('main').getByText('Workspace role: User', { exact: true })).toBeVisible()
   await expect
     .poll(async () =>
       (await page.context().cookies()).some(
-        (cookie) => cookie.name === 'web_app_demo_refresh' && cookie.httpOnly,
+        (cookie) => cookie.name === 'mediqaz_refresh' && cookie.httpOnly,
       ),
     )
     .toBe(true)
@@ -93,7 +87,7 @@ test('registers, restores the session, opens protected UI, and logs out', async 
   await page.reload()
   await expect(page.locator('html')).toHaveClass(/dark/)
   await expect
-    .poll(() => page.evaluate(() => localStorage.getItem('web_app_demo_theme')))
+    .poll(() => page.evaluate(() => localStorage.getItem('mediqaz_theme')))
     .toBe('dark')
 
   await page.route('**/api/auth/logout', async (route) => {

@@ -5,7 +5,7 @@ import {
   type AdminUserSummary,
   type UserDto,
   type UserRole,
-} from '@web-app-demo/contracts'
+} from '@mediqaz/contracts'
 import { useState, type FormEvent } from 'react'
 
 import { DataTableFrame } from '@/components/dashboard'
@@ -51,6 +51,7 @@ import {
 } from './model'
 import {
   useAdminUsersQuery,
+  useUpdateAdminUserApprovalMutation,
   useUpdateAdminUserRoleMutation,
 } from './queries'
 import { RoleChangeDialog } from './RoleChangeDialog'
@@ -71,6 +72,7 @@ export function UserDirectory({ currentUser }: { currentUser: UserDto }) {
     pageSize: 20,
   })
   const roleMutation = useUpdateAdminUserRoleMutation()
+  const approvalMutation = useUpdateAdminUserApprovalMutation()
   const viewState = adminUsersViewState({
     isError: usersQuery.isError,
     isPending: usersQuery.isPending,
@@ -157,6 +159,7 @@ export function UserDirectory({ currentUser }: { currentUser: UserDto }) {
                 <TableRow>
                   <TableHead>User</TableHead>
                   <TableHead>Role</TableHead>
+                  <TableHead>Consultations</TableHead>
                   <TableHead>Created</TableHead>
                 </TableRow>
               </TableHeader>
@@ -204,6 +207,39 @@ export function UserDirectory({ currentUser }: { currentUser: UserDto }) {
                           <SelectItem value="admin">Admin</SelectItem>
                         </SelectContent>
                       </Select>
+                    </TableCell>
+                    <TableCell className="col-span-2 flex items-center justify-between border-t p-0 pt-3 sm:table-cell sm:border-0 sm:p-3">
+                      <Typography className="sm:hidden" variant="caption" tone="muted">
+                        Consultations
+                      </Typography>
+                      <div className="flex items-center gap-3">
+                        <Typography
+                          as="span"
+                          tone={user.isApproved ? undefined : 'muted'}
+                          variant="bodySm"
+                        >
+                          {user.isApproved ? 'Approved' : 'Awaiting approval'}
+                        </Typography>
+                        <Button
+                          aria-label={
+                            user.isApproved
+                              ? `Revoke consultation access for ${user.email}`
+                              : `Approve consultations for ${user.email}`
+                          }
+                          disabled={approvalMutation.isPending}
+                          onClick={() => {
+                            approvalMutation.reset()
+                            approvalMutation.mutate({
+                              isApproved: !user.isApproved,
+                              userId: user.id,
+                            })
+                          }}
+                          size="sm"
+                          variant={user.isApproved ? 'outline' : 'default'}
+                        >
+                          {user.isApproved ? 'Revoke' : 'Approve'}
+                        </Button>
+                      </div>
                     </TableCell>
                     <TableCell className="col-span-2 flex items-center justify-between border-t p-0 pt-3 tabular-nums sm:table-cell sm:border-0 sm:p-3">
                       <Typography className="sm:hidden" variant="caption" tone="muted">

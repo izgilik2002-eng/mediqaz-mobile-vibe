@@ -2,7 +2,9 @@
 
 Use this document when a product needs uploads, images, media, generated files, or downloadable assets.
 
-The supported DigitalOcean-first storage path is:
+> **Deferred for MediQaz, and the provider is not chosen.** MediQaz stores no files: consultation audio is discarded after transcription and never reaches object storage, so `SPACES_*` stays blank. The provider-specific steps below still describe DigitalOcean Spaces from the template and must be revisited against the chosen provider before any upload feature ships. Deployment itself runs on Railway; see [DEPLOYMENT.md](DEPLOYMENT.md).
+
+The template's storage path is:
 
 - DigitalOcean Spaces Standard Storage for persistent objects.
 - Spaces CDN for public images, media, and downloads.
@@ -70,7 +72,7 @@ SPACES_PUBLIC_CACHE_CONTROL="public, max-age=31536000, immutable"
 
 Leave these variables blank for projects that do not need uploads yet. If any required Spaces variable is set, all required Spaces variables must be set.
 
-The DigitalOcean spec generator gives this group to the API service only. The template's notification worker and notification, billing, and maintenance cron tasks do not access Spaces and therefore do not receive its credentials. If a product later adds an image-processing, export, or cleanup background command that reads or writes objects, add an explicit command-to-env mapping and generator coverage for that component instead of copying Spaces env to every worker or cron.
+The DigitalOcean spec generator gives this group to the API service only. The notification worker and the notification and maintenance cron tasks do not access Spaces and therefore do not receive its credentials. If a product later adds an image-processing, export, or cleanup background command that reads or writes objects, add an explicit command-to-env mapping and generator coverage for that component instead of copying Spaces env to every worker or cron.
 
 ## Upload Flow
 

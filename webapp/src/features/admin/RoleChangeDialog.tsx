@@ -1,4 +1,4 @@
-import type { AdminUserSummary, UserRole } from '@web-app-demo/contracts'
+import type { AdminUserSummary, UserRole } from '@mediqaz/contracts'
 
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import {

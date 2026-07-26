@@ -1,4 +1,4 @@
-import { apiErrorSchema } from '@web-app-demo/contracts';
+import { apiErrorSchema } from '@mediqaz/contracts';
 import type { z } from 'zod';
 
 import { SessionGenerationChangedError } from '@/platform/session';

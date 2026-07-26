@@ -27,9 +27,6 @@ maybeDescribe('auth API integration', () => {
     AUTH_BODY_LIMIT_BYTES: 64 * 1024,
     AUTH_RATE_LIMIT_MAX: 60,
     AUTH_RATE_LIMIT_WINDOW_SECONDS: 60,
-    IAP_BODY_LIMIT_BYTES: 64 * 1024,
-    IAP_RATE_LIMIT_MAX: 60,
-    IAP_RATE_LIMIT_WINDOW_SECONDS: 60,
     SHUTDOWN_GRACE_SECONDS: 20,
     TRUST_PROXY: false,
     COOKIE_SECURE: false,
@@ -38,12 +35,13 @@ maybeDescribe('auth API integration', () => {
     SPACES_UPLOAD_URL_TTL_SECONDS: 900,
     SPACES_DOWNLOAD_URL_TTL_SECONDS: 300,
     SPACES_PUBLIC_CACHE_CONTROL: 'public, max-age=31536000, immutable',
-    APPLE_IAP_ENVIRONMENT: 'Sandbox',
-    APPLE_IAP_PRODUCT_IDS: [],
     APPLE_AUTH_JWKS_TIMEOUT_MS: 5000,
     GOOGLE_AUTH_CLIENT_IDS: [],
-    GOOGLE_PLAY_PRODUCT_IDS: [],
-    GOOGLE_PLAY_BASE_PLAN_IDS: [],
+    TRANSCRIPTION_GRANT_TTL_SECONDS: 300,
+    GROQ_MAX_CONCURRENT: 1,
+    CONSULTATION_BODY_LIMIT_BYTES: 512 * 1024,
+    CONSULTATION_RATE_LIMIT_MAX: 60,
+    CONSULTATION_RATE_LIMIT_WINDOW_SECONDS: 60,
   }
   const prisma = createPrisma(databaseUrl!)
   const app = createApp({ env, prisma })
@@ -349,7 +347,7 @@ maybeDescribe('auth API integration', () => {
     expect(confirmations.map(({ status }) => status).sort()).toEqual([204, 400])
     const successfulConfirm = confirmations.find(({ status }) => status === 204)!
     const rejectedConfirm = confirmations.find(({ status }) => status === 400)!
-    expect(successfulConfirm.headers.get('set-cookie')).toContain('web_app_demo_refresh=')
+    expect(successfulConfirm.headers.get('set-cookie')).toContain('mediqaz_refresh=')
     expect(successfulConfirm.headers.get('set-cookie')).toContain('Max-Age=0')
     expect((await rejectedConfirm.json()).error.code).toBe('AUTH_PASSWORD_RESET_INVALID')
     await backgroundTasks.drain()
@@ -543,7 +541,7 @@ maybeDescribe('auth API integration', () => {
 
     expect(register.status).toBe(201)
     expect(registerBody.refreshToken).toBeUndefined()
-    expect(setCookie).toContain('web_app_demo_refresh=')
+    expect(setCookie).toContain('mediqaz_refresh=')
     expect(setCookie).toContain('HttpOnly')
     expect(setCookie).toContain('SameSite=Lax')
 
@@ -577,7 +575,7 @@ maybeDescribe('auth API integration', () => {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        Cookie: `web_app_demo_refresh=${refreshToken}`,
+        Cookie: `mediqaz_refresh=${refreshToken}`,
       },
       body: JSON.stringify({}),
     })
@@ -611,7 +609,7 @@ maybeDescribe('auth API integration', () => {
     expect(register.headers.get('access-control-allow-origin')).toBe('https://web.example.com')
     expect(register.headers.get('access-control-allow-credentials')).toBe('true')
     expect(registerBody.refreshToken).toBeUndefined()
-    expect(setCookie).toContain('web_app_demo_refresh=')
+    expect(setCookie).toContain('mediqaz_refresh=')
     expect(setCookie).toContain('HttpOnly')
     expect(setCookie).toContain('Secure')
     expect(setCookie).toContain('SameSite=None')

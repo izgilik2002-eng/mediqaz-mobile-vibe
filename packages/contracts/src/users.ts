@@ -1,10 +1,12 @@
 import { z } from 'zod'
 
 import { emailSchema, userRoleSchema, userSchema } from './auth'
+import { doctorSpecialtySchema } from './consultations'
 
 export const updateProfileRequestSchema = z
   .object({
     displayName: z.union([z.string().trim().min(2).max(80), z.null()]),
+    specialty: doctorSpecialtySchema.nullable().optional(),
   })
   .strict()
 
@@ -42,6 +44,9 @@ export const adminUserSummarySchema = z
     email: emailSchema,
     displayName: z.string().nullable(),
     role: userRoleSchema,
+    isApproved: z.boolean(),
+    specialty: doctorSpecialtySchema.nullable(),
+    approvedAt: z.string().datetime().nullable(),
     createdAt: z.string().datetime(),
   })
   .strict()
@@ -76,6 +81,26 @@ export const updateUserRoleResponseSchema = z
   })
   .strict()
 
+/** Administrators clear doctors for recording, and can revoke that later. */
+export const updateUserApprovalRequestSchema = z
+  .object({
+    isApproved: z.boolean(),
+  })
+  .strict()
+
+export const updateUserApprovalResponseSchema = z
+  .object({
+    user: adminUserSummarySchema,
+  })
+  .strict()
+
+export const adminPendingApprovalsResponseSchema = z
+  .object({
+    items: z.array(adminUserSummarySchema),
+    total: z.number().int().nonnegative(),
+  })
+  .strict()
+
 export type UpdateProfileRequest = z.infer<typeof updateProfileRequestSchema>
 export type UpdateProfileResponse = z.infer<typeof updateProfileResponseSchema>
 export type AdminUsersQuery = z.infer<typeof adminUsersQuerySchema>
@@ -84,3 +109,6 @@ export type AdminUsersResponse = z.infer<typeof adminUsersResponseSchema>
 export type AdminDashboardResponse = z.infer<typeof adminDashboardResponseSchema>
 export type UpdateUserRoleRequest = z.infer<typeof updateUserRoleRequestSchema>
 export type UpdateUserRoleResponse = z.infer<typeof updateUserRoleResponseSchema>
+export type UpdateUserApprovalRequest = z.infer<typeof updateUserApprovalRequestSchema>
+export type UpdateUserApprovalResponse = z.infer<typeof updateUserApprovalResponseSchema>
+export type AdminPendingApprovalsResponse = z.infer<typeof adminPendingApprovalsResponseSchema>

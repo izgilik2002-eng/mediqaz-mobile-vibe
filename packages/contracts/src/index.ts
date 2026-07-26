@@ -1,5 +1,5 @@
 export * from './auth'
+export * from './consultations'
 export * from './errors'
-export * from './iap'
 export * from './notifications'
 export * from './users'

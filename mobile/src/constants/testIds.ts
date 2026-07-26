@@ -21,20 +21,7 @@ export const TEST_IDS = {
     openButton: 'details.open-button',
     screen: 'details.screen',
   },
-  paywall: {
-    empty: 'paywall.empty',
-    error: 'paywall.error',
-    loading: 'paywall.loading',
-    planGroup: 'paywall.plan-group',
-    planOption: 'paywall.plan-option',
-    profileButton: 'paywall.profile-button',
-    purchaseButton: 'paywall.purchase-button',
-    redeemOfferCodeButton: 'paywall.redeem-offer-code-button',
-    restoreButton: 'paywall.restore-button',
-    screen: 'paywall.screen',
-  },
   profile: {
-    manageSubscriptionButton: 'profile.manage-subscription-button',
     screen: 'profile.screen',
   },
   screen: {

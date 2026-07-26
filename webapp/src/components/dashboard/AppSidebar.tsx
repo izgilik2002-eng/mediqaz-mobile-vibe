@@ -1,4 +1,4 @@
-import type { UserDto } from '@web-app-demo/contracts'
+import type { UserDto } from '@mediqaz/contracts'
 
 import {
   Sidebar,
@@ -38,14 +38,14 @@ export function AppSidebar({
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton asChild size="lg" tooltip="web_app_demo">
+            <SidebarMenuButton asChild size="lg" tooltip="mediqaz">
               <DashboardLink to={homePath}>
                 <span className="flex size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
                   <Typography variant="control">W</Typography>
                 </span>
                 <span className="grid min-w-0 gap-0.5">
                   <Typography variant="control" truncate>
-                    web_app_demo
+                    mediqaz
                   </Typography>
                   <Typography variant="caption" tone="muted" truncate>
                     {workspaceLabel}

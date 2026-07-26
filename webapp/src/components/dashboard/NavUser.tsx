@@ -5,7 +5,7 @@ import {
   UserCircle02Icon,
 } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
-import type { UserDto } from '@web-app-demo/contracts'
+import type { UserDto } from '@mediqaz/contracts'
 import { useState } from 'react'
 
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'

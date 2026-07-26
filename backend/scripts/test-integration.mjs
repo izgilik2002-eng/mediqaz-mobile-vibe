@@ -64,7 +64,7 @@ if (process.env.TEST_SKIP_DOCKER !== '1') {
     cwd: repositoryRoot,
     env,
   })
-  await waitForComposePostgres('postgres_test', 'web_app_demo_test', env)
+  await waitForComposePostgres('postgres_test', 'mediqaz_test', env)
 }
 
 run('bun', ['run', 'prisma:generate'], { env })
@@ -75,7 +75,6 @@ run(
     'test',
     'src/modules/auth/auth.integration.test.ts',
     'src/modules/users/users.integration.test.ts',
-    'src/modules/billing/billing.integration.test.ts',
     'src/modules/notifications/notifications.integration.test.ts',
   ],
   { env },

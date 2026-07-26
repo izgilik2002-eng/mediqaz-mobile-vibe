@@ -7,18 +7,6 @@ import { publishBrowserSessionState } from '../src/features/auth/session-coordin
 import { ApiRequestError } from '../src/platform/api'
 
 const originalFetch = globalThis.fetch
-const inactiveSubscription = {
-  entitlement: 'premium',
-  isActive: false,
-  state: 'inactive',
-  platform: null,
-  productId: null,
-  originalTransactionId: null,
-  transactionId: null,
-  expiresAt: null,
-  willAutoRenew: null,
-  updatedAt: null,
-}
 
 afterEach(() => {
   globalThis.fetch = originalFetch
@@ -69,8 +57,9 @@ test('AuthApi refreshes and retries authenticated requests with the new access t
             email: 'user@example.com',
             displayName: null,
             role: 'user',
+            isApproved: false,
+            specialty: null,
             createdAt: '2026-05-11T00:00:00.000Z',
-            subscription: inactiveSubscription,
           },
         },
         200,
@@ -124,8 +113,9 @@ test('AuthApi shares one refresh across concurrent unauthorized requests', async
             email: 'user@example.com',
             displayName: null,
             role: 'user',
+            isApproved: false,
+            specialty: null,
             createdAt: '2026-05-11T00:00:00.000Z',
-            subscription: inactiveSubscription,
           },
         },
         200,
@@ -325,8 +315,9 @@ test('AuthApi discards a successful response from an older browser session epoch
           email: 'account-a@example.com',
           displayName: null,
           role: 'user',
+          isApproved: false,
+          specialty: null,
           createdAt: '2026-05-11T00:00:00.000Z',
-          subscription: inactiveSubscription,
         },
       },
       200,

@@ -17,7 +17,6 @@ const plugins = [
   'expo-secure-store',
   'expo-notifications',
   'expo-status-bar',
-  'expo-iap',
   'expo-apple-authentication',
 ];
 

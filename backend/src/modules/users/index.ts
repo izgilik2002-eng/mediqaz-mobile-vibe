@@ -18,7 +18,9 @@ export function createUsersModule(options: CreateUsersModuleOptions) {
     adminDashboardReader: repository,
     adminUsersReader: repository,
     clock: { now: () => new Date() },
+    pendingApprovalsReader: repository,
     profileWriter: repository,
+    userApprovalUpdater: repository,
     userRoleUpdater: repository,
   })
   return createUsersRoutes({

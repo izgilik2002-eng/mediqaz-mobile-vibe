@@ -69,19 +69,19 @@ test('documented manual Compose commands load the backend-owned env file', async
 
 test('defaultTestDatabaseUrl builds the documented postgres test URL', () => {
   expect(defaultTestDatabaseUrl('55432')).toBe(
-    'postgresql://superuser:superpassword@localhost:55432/web_app_demo_test?schema=public',
+    'postgresql://superuser:superpassword@localhost:55432/mediqaz_test?schema=public',
   )
 })
 
 test('postgresPortFromDatabaseUrl returns explicit ports and postgres defaults', () => {
   expect(
     postgresPortFromDatabaseUrl(
-      'postgresql://superuser:superpassword@localhost:55432/web_app_demo_test?schema=public',
+      'postgresql://superuser:superpassword@localhost:55432/mediqaz_test?schema=public',
     ),
   ).toBe('55432')
   expect(
     postgresPortFromDatabaseUrl(
-      'postgresql://superuser:superpassword@localhost/web_app_demo_test?schema=public',
+      'postgresql://superuser:superpassword@localhost/mediqaz_test?schema=public',
     ),
   ).toBe('5432')
 })
@@ -89,15 +89,15 @@ test('postgresPortFromDatabaseUrl returns explicit ports and postgres defaults',
 test('assertTestDatabaseUrl accepts test databases and rejects development databases', () => {
   expect(() =>
     assertTestDatabaseUrl(
-      'postgresql://superuser:superpassword@localhost:55432/web_app_demo_test?schema=public',
+      'postgresql://superuser:superpassword@localhost:55432/mediqaz_test?schema=public',
     ),
   ).not.toThrow()
 
   expect(() =>
     assertTestDatabaseUrl(
-      'postgresql://superuser:superpassword@localhost:54329/web_app_demo?schema=public',
+      'postgresql://superuser:superpassword@localhost:54329/mediqaz?schema=public',
     ),
-  ).toThrow(/Refusing to run tests against non-test database "web_app_demo"/)
+  ).toThrow(/Refusing to run tests against non-test database "mediqaz"/)
 })
 
 test('assertTestDatabaseUrl accepts non-test databases with an intentional override', () => {
@@ -105,7 +105,7 @@ test('assertTestDatabaseUrl accepts non-test databases with an intentional overr
 
   expect(() =>
     assertTestDatabaseUrl(
-      'postgresql://superuser:superpassword@localhost:54329/web_app_demo?schema=public',
+      'postgresql://superuser:superpassword@localhost:54329/mediqaz?schema=public',
     ),
   ).not.toThrow()
 })

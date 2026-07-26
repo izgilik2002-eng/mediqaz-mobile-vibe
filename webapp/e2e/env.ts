@@ -12,14 +12,14 @@ export const preferredBackendPort =
 export const preferredWebPort =
   55000 + (Number.parseInt(repositoryHash.slice(0, 6), 16) % 5000)
 export const composeProjectName =
-  process.env.COMPOSE_PROJECT_NAME ?? `vibecoding-template-${repositoryHash}`
+  process.env.COMPOSE_PROJECT_NAME ?? `mediqaz-${repositoryHash}`
 export const defaultPostgresTestPort =
   process.env.POSTGRES_TEST_PORT ?? String(preferredPostgresTestPort)
 export const defaultBackendPort =
   process.env.E2E_BACKEND_PORT ?? String(preferredBackendPort)
 export const defaultWebPort =
   process.env.E2E_WEB_PORT ?? String(preferredWebPort)
-export const defaultDatabaseUrl = `postgresql://superuser:superpassword@localhost:${defaultPostgresTestPort}/web_app_demo_test?schema=public`
+export const defaultDatabaseUrl = `postgresql://superuser:superpassword@localhost:${defaultPostgresTestPort}/mediqaz_test?schema=public`
 export const e2eAdminEmail = 'admin@example.com'
 export const e2eAdminPassword = 'admin-e2e-password'
 

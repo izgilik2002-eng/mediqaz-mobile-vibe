@@ -32,19 +32,9 @@ const validUser = {
   email: 'user@example.com',
   displayName: null,
   role: 'user',
+  isApproved: false,
+  specialty: null,
   createdAt: '2026-05-11T00:00:00.000Z',
-  subscription: {
-    entitlement: 'premium',
-    isActive: false,
-    state: 'inactive',
-    platform: null,
-    productId: null,
-    originalTransactionId: null,
-    transactionId: null,
-    expiresAt: null,
-    willAutoRenew: null,
-    updatedAt: null,
-  },
 } as const
 
 describe('auth contracts', () => {

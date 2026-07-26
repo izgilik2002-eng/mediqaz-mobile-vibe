@@ -44,17 +44,6 @@
 - Do not add empty layers, generic/base repositories, CQRS, event sourcing, or state-machine libraries without a concrete product need.
 - Do not move business rules into routes, screens, providers, or UI primitives to avoid defining the owning application/domain boundary.
 
-## Bootstrap-Only Instructions
-
-<!-- BOOTSTRAP_ONLY_START -->
-This block applies only while installing the template as a new project:
-
-- Read `README.md`, especially `Agent Repo Download Instructions`, before setup or feature work.
-- Complete the documented product intake, active/deferred surface selection, branch choice, repository remote handling, Docker/PostgreSQL setup, deployment scope, and optional Expo/EAS or Maestro setup.
-- Bootstrap is complete when project choices are recorded, template identifiers and the intended remote state are resolved, required setup for active surfaces succeeds, and validation results are reported.
-- Then delete this entire marked block from both `AGENTS.md` and `CLAUDE.md`.
-<!-- BOOTSTRAP_ONLY_END -->
-
 ## Git And Remote Policy
 
 - Inspect `git remote -v` before any branch, commit, push, or PR workflow.
@@ -121,7 +110,7 @@ This block applies only while installing the template as a new project:
 
 - Code is the source of truth for implementation details. Update README/docs only for material, durable changes; flag relevant drift that remains out of scope.
 - For deployment or cloud work, read `docs/DEPLOYMENT.md` and the active provider/storage docs, then use repository scripts and generators rather than provider details from memory. Check current official docs for changeable external facts.
-- Concrete DigitalOcean spec defaults belong in `scripts/prepare-do-specs.mjs` and `.do/*.yaml.example`; keep `docs/DEPLOYMENT.md` aligned when changing them.
+- Concrete deployment defaults belong in `railway.json`; keep `docs/DEPLOYMENT.md` aligned when changing them.
 - Before deployment or cloud-resource updates, verify `git remote -v`, `git status --short --branch`, and the configured release branch/commit. If the worktree is dirty, not pushed/synced, or ambiguous, stop; never reset, clean, stash, or switch branches merely to make deployment possible.
 - Keep durable storage and media decisions in `docs/STORAGE.md` and provider-specific deployment docs.
 

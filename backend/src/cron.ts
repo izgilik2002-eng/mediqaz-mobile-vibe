@@ -1,12 +1,7 @@
 import { createBackgroundRuntime, type BackendRuntime } from './runtime'
-import { createBillingModule } from './modules/billing'
 import { createNotificationsModule } from './modules/notifications'
 
 type CronTask = (runtime: BackendRuntime, now: Date) => Promise<void>
-
-type GooglePlayReconcileResult = Awaited<
-  ReturnType<ReturnType<typeof createBillingModule>['reconcileGooglePlayBatch']>
->
 
 const cronTasks = {
   noop: async () => {
@@ -28,11 +23,6 @@ const cronTasks = {
       receipts,
     })
   },
-  'billing:google-play:reconcile': async (runtime, now) => {
-    const result = await reconcileGooglePlayPurchases(runtime, now)
-    console.log('Cron billing:google-play:reconcile task completed.', result)
-    assertGooglePlayReconcileSucceeded(result)
-  },
   'auth:sessions:cleanup': async (runtime, now) => {
     const { passwordResetTokensDeleted, sessionsDeleted } = await cleanupAuthState(runtime, now)
     console.log(
@@ -45,16 +35,11 @@ const cronTasks = {
       db: runtime.prisma,
       env: runtime.env,
     }).redactTerminalData()
-    const googlePlay = runtime.env.GOOGLE_PLAY_PACKAGE_NAME
-      ? await reconcileGooglePlayPurchases(runtime, now)
-      : null
     console.log('Cron maintenance:process task completed.', {
       authSessionsDeleted: sessionsDeleted,
-      googlePlay,
       passwordResetTokensDeleted,
       terminalNotificationOutboxesRedacted,
     })
-    if (googlePlay) assertGooglePlayReconcileSucceeded(googlePlay)
   },
 } satisfies Record<string, CronTask>
 
@@ -114,37 +99,6 @@ async function cleanupAuthState({ env, prisma }: BackendRuntime, now: Date) {
   return {
     passwordResetTokensDeleted: passwordResetTokens.count,
     sessionsDeleted: sessions.count,
-  }
-}
-
-async function reconcileGooglePlayPurchases(runtime: BackendRuntime, now: Date) {
-  const billing = createBillingModule({
-    db: runtime.prisma,
-    env: runtime.env,
-  })
-  const result = await billing.reconcileGooglePlayBatch({
-    before: new Date(now.getTime() - 15 * 60 * 1000),
-    deadline: new Date(now.getTime() + 50 * 1000),
-    limit: 100,
-  })
-  return {
-    ...result,
-    backlogOldestAgeSeconds: result.backlogOldestDueAt
-      ? Math.max(
-          0,
-          Math.floor(
-            (now.getTime() - result.backlogOldestDueAt.getTime()) / 1_000,
-          ),
-        )
-      : null,
-  }
-}
-
-function assertGooglePlayReconcileSucceeded(result: GooglePlayReconcileResult) {
-  if (result.failed > 0) {
-    throw new Error(
-      `Google Play reconcile failed for ${result.failed} of ${result.attempted} attempted purchases`,
-    )
   }
 }
 

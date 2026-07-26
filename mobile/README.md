@@ -9,10 +9,8 @@ This section may be updated during first-run bootstrap. If the root `README.md` 
 ## Current App Shape
 
 - `/` is the register/login screen and intentionally has no tabs.
-- Authenticated users without active premium land on `/paywall`.
 - Active premium users land on `/components`, which lives in the bottom tab shell with `/profile`.
 - `/details/[id]` is a stack screen outside the tabs and uses an in-screen back button at the top left. It is part of the premium surface.
-- App Store and Google Play subscriptions are active purchase paths. App Store offer-code redemption is supported on iOS. Google Play code redemption, signed promotional-offer purchase flows, alternative billing, and external purchase links are deferred.
 - Product screens compose `src/components/dashboard/ScreenShell.tsx`, which owns the shared native site header and delegates safe-area, scrolling, keyboard avoidance, and back navigation to the low-level `Screen` layout primitive.
 - Phones use the native bottom-tab shell. Expo Web switches to the same compact side-rail/inset composition at the shared wide-layout breakpoint.
 
@@ -27,8 +25,7 @@ This section may be updated during first-run bootstrap. If the root `README.md` 
 - Expo SecureStore
 - Expo Notifications
 - Expo Apple Authentication and React Native Google Sign-In for optional social auth
-- Expo IAP for App Store and Google Play subscription transport
-- Zod contracts from `@web-app-demo/contracts`
+- Zod contracts from `@mediqaz/contracts`
 - Native ShadCN-style UI primitives in `src/components/ui`
 - Maestro E2E smoke flow
 
@@ -57,13 +54,6 @@ EXPO_PUBLIC_API_URL=http://localhost:3000
 EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID=
 EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID=
 EXPO_PUBLIC_GOOGLE_IOS_URL_SCHEME=
-EXPO_PUBLIC_IAP_IOS_MONTHLY_PRODUCT_ID=com.example.app.premium.monthly
-EXPO_PUBLIC_IAP_IOS_YEARLY_PRODUCT_ID=com.example.app.premium.yearly
-EXPO_PUBLIC_IAP_ANDROID_PACKAGE_NAME=com.example.app
-EXPO_PUBLIC_IAP_ANDROID_MONTHLY_PRODUCT_ID=com.example.app.premium
-EXPO_PUBLIC_IAP_ANDROID_MONTHLY_BASE_PLAN_ID=monthly
-EXPO_PUBLIC_IAP_ANDROID_YEARLY_PRODUCT_ID=com.example.app.premium
-EXPO_PUBLIC_IAP_ANDROID_YEARLY_BASE_PLAN_ID=yearly
 EXPO_PUBLIC_DISABLE_PUSH_NOTIFICATIONS=0
 ```
 
@@ -85,8 +75,6 @@ EXPO_PUBLIC_E2E=1
 `EXPO_PUBLIC_*` variables are included in the client bundle, so never put secrets there.
 
 Apple and Google auth setup is documented in [../docs/SOCIAL_AUTH.md](../docs/SOCIAL_AUTH.md). Changing Apple capability or Google iOS URL scheme requires a new development build.
-
-IAP setup, backend store credentials, sandbox/internal testing, restore behavior, and troubleshooting are documented in [../docs/IAP.md](../docs/IAP.md).
 
 ## Expo Push Notifications
 
@@ -140,7 +128,7 @@ a custom test port.
 docker compose version
 docker info
 docker compose --env-file backend/.env up -d postgres_test
-export TEST_DATABASE_URL="postgresql://superuser:superpassword@localhost:54330/web_app_demo_test?schema=public"
+export TEST_DATABASE_URL="postgresql://superuser:superpassword@localhost:54330/mediqaz_test?schema=public"
 export LAN_IP=<your-machine-lan-ip>
 export BACKEND_PORT=3000
 export METRO_PORT=8081
@@ -177,11 +165,11 @@ Stable selectors live in `src/constants/testIds.ts`, the flow is `.maestro/flows
 
 Use TanStack Query for server state, TanStack Form for forms, and shared Zod schemas for validation. Native iOS/Android use `/api/auth/token/*`: the refresh token is stored in `expo-secure-store` and the access token lives only in app memory. Logout first persists a non-secret pending marker beside that existing credential, then clears in-memory access/query state immediately. A confirmed revocation or terminal stale authority clears the refresh credential before clearing the marker; a timeout or network error retains both. On restart, bootstrap sees the marker before attempting refresh, remains anonymous, and boundedly retries logout with the retained credential and session-scoped push cleanup evidence. Expo Web follows the same marker protocol without copying its cookie authority into JavaScript: its refresh token stays in the backend-issued HttpOnly cookie and is never written to JavaScript storage. Expo Web serializes cookie-mutating auth requests through an exclusive Web Lock, with an in-process queue fallback. Successful register, login, and logout transitions increment a monotonic browser epoch inside that lock; storage/BroadcastChannel events invalidate other tabs, and refresh verifies both the captured epoch and the backend-issued `{ userId, sessionId }` identity before retrying an authenticated request. Bounded logout aborts its request at the timeout so it cannot retain the shared lock indefinitely. The native token transport does not use the browser coordinator.
 
-Product code lives in `src/features/auth`, `src/features/billing`, and `src/features/notifications`. `src/composition` builds the namespaced APIs and passes each provider only its own interface. `src/platform/api` owns endpoint-agnostic fetch, auth retry, base URL, and error parsing; each feature API owns its endpoint paths and schemas. Routes are thin wrappers that import features through public indexes. Run `bun run architecture:check` after boundary changes and `bun run doctor` (pinned to Expo Doctor 1.20.0) after Expo dependency changes.
+Product code lives in `src/features/auth` and `src/features/notifications`. `src/composition` builds the namespaced APIs and passes each provider only its own interface. `src/platform/api` owns endpoint-agnostic fetch, auth retry, base URL, and error parsing; each feature API owns its endpoint paths and schemas. Routes are thin wrappers that import features through public indexes. Run `bun run architecture:check` after boundary changes and `bun run doctor` (pinned to Expo Doctor 1.20.0) after Expo dependency changes.
 
 Mobile UI primitives live in `src/components/ui` and mirror the local Web ShadCN registry by file name. They are React Native-first implementations using native style props, controlled/uncontrolled values, and native touch patterns instead of DOM/Radix props such as `className` or `asChild`. The protected `/components` route is the local component catalog and the post-auth smoke surface.
 
-The canonical native color, radius, spacing, typography, and interaction tokens live in `src/components/ui/theme-tokens.ts` and `src/components/ui/theme.ts`. Shared dashboard composition belongs in `src/components/dashboard`: `ScreenShell`, `SiteHeader`, section/metric/account cards, navigation rail/items, data rows, and reusable loading/empty/error states. Product-owned auth and billing components accept semantic data, state, and callbacks; they do not expose `style` or `className`. Routes only arrange those closed components.
+The canonical native color, radius, spacing, typography, and interaction tokens live in `src/components/ui/theme-tokens.ts` and `src/components/ui/theme.ts`. Shared dashboard composition belongs in `src/components/dashboard`: `ScreenShell`, `SiteHeader`, section/metric/account cards, navigation rail/items, data rows, and reusable loading/empty/error states. Product-owned feature components accept semantic data, state, and callbacks; they do not expose `style` or `className`. Routes only arrange those closed components.
 
 Render visible text through `src/components/ui/typography.tsx`. `Typography` owns the mobile type scale from `h1` through `h6` plus body, caption, label, button, link, and code text variants; screens and UI primitives should not import React Native `Text` directly or use legacy text wrappers.
 

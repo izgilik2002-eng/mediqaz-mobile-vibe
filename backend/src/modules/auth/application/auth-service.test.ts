@@ -9,20 +9,9 @@ const user = {
   passwordHash: 'password-hash',
   displayName: null,
   role: 'user' as const,
+  isApproved: false,
+  specialty: null,
   createdAt: new Date('2026-01-01T00:00:00.000Z'),
-}
-
-const inactiveSubscription = {
-  entitlement: 'premium' as const,
-  isActive: false,
-  state: 'inactive' as const,
-  platform: null,
-  productId: null,
-  originalTransactionId: null,
-  transactionId: null,
-  expiresAt: null,
-  willAutoRenew: null,
-  updatedAt: null,
 }
 
 const unusedPasswordResetDependencies = {
@@ -40,7 +29,6 @@ const unusedPasswordResetDependencies = {
     create: () => 'r'.repeat(43),
     hash: (token: string) => `hash:${token}`,
   },
-  subscriptionReader: async () => inactiveSubscription,
 }
 
 const unusedPasswordResetRepository = {
@@ -77,7 +65,6 @@ test('verifies an unchanged password before opening the session transaction', as
         return true
       },
     },
-    subscriptionReader: async () => inactiveSubscription,
     refreshReuseGraceSeconds: 10,
     refreshTokenTtlDays: 30,
     sessionAbsoluteTtlDays: 90,
@@ -140,7 +127,6 @@ test('refresh keeps the logical session id stable while rotating its credential'
       hash: async () => 'password-hash',
       verify: async () => true,
     },
-    subscriptionReader: async () => inactiveSubscription,
     refreshTokenTtlDays: 30,
     refreshReuseGraceSeconds: 10,
     sessionAbsoluteTtlDays: 90,
@@ -183,7 +169,6 @@ test('refresh revokes the logical session when a previous credential is reused a
     clock: { now: () => new Date('2026-01-01T00:00:00.000Z') },
     logoutCleanup: async () => undefined,
     passwords: { hash: async () => 'hash', verify: async () => true },
-    subscriptionReader: async () => inactiveSubscription,
     refreshReuseGraceSeconds: 10,
     refreshTokenTtlDays: 30,
     sessionAbsoluteTtlDays: 90,
@@ -230,7 +215,6 @@ test('refresh returns the winning successor when another request wins the rotati
     clock: { now: () => new Date('2026-01-01T00:00:00.000Z') },
     logoutCleanup: async () => undefined,
     passwords: { hash: async () => 'hash', verify: async () => true },
-    subscriptionReader: async () => inactiveSubscription,
     refreshReuseGraceSeconds: 10,
     refreshTokenTtlDays: 30,
     sessionAbsoluteTtlDays: 90,
@@ -258,7 +242,6 @@ test('password reset request stays generic and creates nothing while delivery is
     backgroundTasks: { defer: () => undefined },
     clock: { now: () => new Date('2026-01-01T00:00:00.000Z') },
     logoutCleanup: async () => undefined,
-    subscriptionReader: async () => inactiveSubscription,
     passwords: { hash: async () => 'hash', verify: async () => true },
     passwordResetCooldownSeconds: 60,
     passwordResetNotifier: {
@@ -308,7 +291,6 @@ test('password reset request reports delivery failure after invalidating its tok
     },
     clock: { now: () => now },
     logoutCleanup: async () => undefined,
-    subscriptionReader: async () => inactiveSubscription,
     passwords: { hash: async () => 'hash', verify: async () => true },
     passwordResetCooldownSeconds: 60,
     passwordResetNotifier: {
@@ -375,7 +357,6 @@ test('password reset confirmation rejects invalid tokens before hashing and defe
     },
     clock: { now: () => now },
     logoutCleanup: async () => undefined,
-    subscriptionReader: async () => inactiveSubscription,
     passwords: {
       hash: async (password) => {
         passwordHashCalls += 1

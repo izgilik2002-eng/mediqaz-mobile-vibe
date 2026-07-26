@@ -21,7 +21,7 @@ import {
   type SocialAuthProvider,
   type SocialAuthRequest,
   type TokenLogoutRequest,
-} from '@web-app-demo/contracts';
+} from '@mediqaz/contracts';
 
 import { ApiRequestError, type ApiTransport } from '@/platform/api';
 import { SessionGenerationChangedError } from '@/platform/session';

@@ -1,4 +1,4 @@
-import type { PushMutationResponse, UnregisterPushTokenRequest } from '@web-app-demo/contracts';
+import type { PushMutationResponse, UnregisterPushTokenRequest } from '@mediqaz/contracts';
 
 type ModernUnregisterPushTokenRequest = Extract<
   UnregisterPushTokenRequest,

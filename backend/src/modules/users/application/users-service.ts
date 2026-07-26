@@ -1,16 +1,19 @@
 import type {
   AdminUsersQuery,
   UpdateProfileRequest,
+  UpdateUserApprovalRequest,
   UpdateUserRoleRequest,
   UserDto,
-} from '@web-app-demo/contracts'
+} from '@mediqaz/contracts'
 
 import type { AuthenticatedPrincipal } from '../../auth'
 import type {
   AdminDashboardReader,
   AdminUsersReader,
   Clock,
+  PendingApprovalsReader,
   ProfileWriter,
+  UserApprovalUpdater,
   UserRecord,
   UserRoleUpdater,
 } from './ports'
@@ -19,7 +22,9 @@ type UsersServiceDependencies = {
   adminDashboardReader: AdminDashboardReader
   adminUsersReader: AdminUsersReader
   clock: Clock
+  pendingApprovalsReader: PendingApprovalsReader
   profileWriter: ProfileWriter
+  userApprovalUpdater: UserApprovalUpdater
   userRoleUpdater: UserRoleUpdater
 }
 
@@ -27,12 +32,12 @@ export class UsersService {
   constructor(private readonly dependencies: UsersServiceDependencies) {}
 
   async updateProfile(principal: AuthenticatedPrincipal, input: UpdateProfileRequest) {
-    const user = await this.dependencies.profileWriter.updateProfile(
-      principal.id,
-      input.displayName,
-    )
+    const user = await this.dependencies.profileWriter.updateProfile(principal.id, {
+      displayName: input.displayName,
+      specialty: input.specialty,
+    })
     return {
-      user: this.userDto(user, principal),
+      user: this.userDto(user),
     }
   }
 
@@ -60,14 +65,34 @@ export class UsersService {
     }
   }
 
-  private userDto(user: UserRecord, principal: AuthenticatedPrincipal): UserDto {
+  listPendingApprovals() {
+    return this.dependencies.pendingApprovalsReader.listPendingApprovals()
+  }
+
+  async updateApproval(
+    principal: AuthenticatedPrincipal,
+    targetUserId: string,
+    input: UpdateUserApprovalRequest,
+  ) {
+    return {
+      user: await this.dependencies.userApprovalUpdater.updateApproval({
+        actorUserId: principal.id,
+        targetUserId,
+        isApproved: input.isApproved,
+        now: this.dependencies.clock.now(),
+      }),
+    }
+  }
+
+  private userDto(user: UserRecord): UserDto {
     return {
       id: user.id,
       email: user.email,
       displayName: user.displayName,
       role: user.role,
+      isApproved: user.isApproved,
+      specialty: user.specialty,
       createdAt: user.createdAt.toISOString(),
-      subscription: principal.subscription,
     }
   }
 }

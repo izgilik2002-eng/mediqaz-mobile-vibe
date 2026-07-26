@@ -6,7 +6,7 @@ import {
   UserIcon,
 } from '@hugeicons/core-free-icons'
 import { useLocation } from '@tanstack/react-router'
-import type { UserDto } from '@web-app-demo/contracts'
+import type { UserDto } from '@mediqaz/contracts'
 import type { PropsWithChildren } from 'react'
 
 import {

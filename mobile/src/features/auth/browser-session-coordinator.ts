@@ -17,8 +17,8 @@ type StoredBrowserSessionEvent = BrowserSessionEvent & {
   sourceId: string;
 };
 
-const browserSessionStorageKey = 'web_app_demo:expo-web-auth-session-v1';
-const browserSessionChannelName = 'web_app_demo:expo-web-auth-session';
+const browserSessionStorageKey = 'mediqaz:expo-web-auth-session-v1';
+const browserSessionChannelName = 'mediqaz:expo-web-auth-session';
 const sourceId = createId();
 const listeners = new Set<(event: BrowserSessionEvent) => void>();
 let currentEvent: StoredBrowserSessionEvent = {

@@ -1,21 +1,28 @@
 import type {
   AdminDashboardResponse,
+  AdminPendingApprovalsResponse,
   AdminUserSummary,
   AdminUsersQuery,
   AdminUsersResponse,
+  DoctorSpecialty,
   UserRole,
-} from '@web-app-demo/contracts'
+} from '@mediqaz/contracts'
 
 export type UserRecord = {
   id: string
   email: string
   displayName: string | null
   role: UserRole
+  isApproved: boolean
+  specialty: DoctorSpecialty | null
   createdAt: Date
 }
 
 export type ProfileWriter = {
-  updateProfile(userId: string, displayName: string | null): Promise<UserRecord>
+  updateProfile(
+    userId: string,
+    input: { displayName: string | null; specialty?: DoctorSpecialty | null },
+  ): Promise<UserRecord>
 }
 
 export type AdminDashboardReader = {
@@ -33,6 +40,20 @@ export type UserRoleUpdater = {
     role: UserRole
     now: Date
   }): Promise<AdminUserSummary>
+}
+
+/** Administrators clear doctors for consultations, and can revoke that later. */
+export type UserApprovalUpdater = {
+  updateApproval(input: {
+    actorUserId: string
+    targetUserId: string
+    isApproved: boolean
+    now: Date
+  }): Promise<AdminUserSummary>
+}
+
+export type PendingApprovalsReader = {
+  listPendingApprovals(): Promise<AdminPendingApprovalsResponse>
 }
 
 export type Clock = {

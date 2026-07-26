@@ -7,6 +7,7 @@ import {
   adminUsersQuerySchema,
   adminUsersResponseSchema,
   updateProfileRequestSchema,
+  updateUserApprovalRequestSchema,
   updateUserRoleRequestSchema,
   userSchema,
 } from './index'
@@ -16,19 +17,9 @@ const user = {
   email: 'user@example.com',
   displayName: 'User',
   role: 'user',
+  isApproved: false,
+  specialty: null,
   createdAt: '2026-07-20T00:00:00.000Z',
-  subscription: {
-    entitlement: 'premium',
-    isActive: false,
-    state: 'inactive',
-    platform: null,
-    productId: null,
-    originalTransactionId: null,
-    transactionId: null,
-    expiresAt: null,
-    willAutoRenew: null,
-    updatedAt: null,
-  },
 } as const
 
 describe('user and admin contracts', () => {
@@ -75,6 +66,9 @@ describe('user and admin contracts', () => {
       email: user.email,
       displayName: user.displayName,
       role: user.role,
+      isApproved: user.isApproved,
+      specialty: user.specialty,
+      approvedAt: null,
       createdAt: user.createdAt,
     }
     expect(adminUserSummarySchema.parse(summary)).toEqual(summary)
@@ -107,6 +101,9 @@ describe('user and admin contracts', () => {
             email: user.email,
             displayName: user.displayName,
             role: user.role,
+            isApproved: user.isApproved,
+            specialty: user.specialty,
+            approvedAt: null,
             createdAt: user.createdAt,
           },
         ],
@@ -117,4 +114,21 @@ describe('user and admin contracts', () => {
       }),
     ).toMatchObject({ page: 1, pageSize: 20, total: 1, hasNext: false })
   })
+})
+
+test('approval is a deliberate boolean an administrator sets', () => {
+  expect(updateUserApprovalRequestSchema.parse({ isApproved: true })).toEqual({
+    isApproved: true,
+  })
+  expect(updateUserApprovalRequestSchema.parse({ isApproved: false })).toEqual({
+    isApproved: false,
+  })
+  expect(() => updateUserApprovalRequestSchema.parse({})).toThrow()
+  expect(() => updateUserApprovalRequestSchema.parse({ isApproved: 'yes' })).toThrow()
+})
+
+test('the profile update contract cannot carry approval', () => {
+  expect(() =>
+    updateProfileRequestSchema.parse({ displayName: 'Доктор', isApproved: true }),
+  ).toThrow()
 })

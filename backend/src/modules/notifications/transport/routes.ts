@@ -5,7 +5,7 @@ import {
   testPushNotificationRequestSchema,
   testPushNotificationResponseSchema,
   unregisterPushTokenRequestSchema,
-} from '@web-app-demo/contracts'
+} from '@mediqaz/contracts'
 import { createRoute, OpenAPIHono } from '@hono/zod-openapi'
 import type { Context } from 'hono'
 
