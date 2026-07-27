@@ -2,17 +2,21 @@ import { Redirect } from 'expo-router';
 
 import AppTabs from '@/components/app-tabs';
 import { ScreenLoader } from '@/components/screen-states';
-import { useAuth } from '@/features/auth';
+import { useDoctorAccess } from '@/features/auth';
 
 export default function TabsLayout() {
-  const auth = useAuth();
+  const access = useDoctorAccess();
 
-  if (auth.isBootstrapping) {
+  if (access.state === 'loading') {
     return <ScreenLoader />;
   }
 
-  if (!auth.user) {
+  if (access.state === 'signed-out') {
     return <Redirect href="/" />;
+  }
+
+  if (access.state === 'pending-approval') {
+    return <Redirect href="/pending-approval" />;
   }
 
   return <AppTabs />;

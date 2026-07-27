@@ -22,6 +22,7 @@ import {
   markStoredExpoPushTokenForCleanup,
   setPendingExpoPushTokenCleanup,
 } from '@/features/notifications';
+import { ProfileProvider } from '@/features/users';
 import { createMobileApis, SessionController } from './api';
 import { authTransportForPlatform } from './auth-transport';
 
@@ -64,11 +65,13 @@ export function AppProviders({ children }: PropsWithChildren) {
         logoutSupport={logoutSupport}
         session={session}
       >
-        <PushNotificationsProvider
-          api={apis.notifications}
-          registrationCoordinator={pushRegistrationCoordinator}>
-          {children}
-        </PushNotificationsProvider>
+        <ProfileProvider api={apis.users}>
+          <PushNotificationsProvider
+            api={apis.notifications}
+            registrationCoordinator={pushRegistrationCoordinator}>
+            {children}
+          </PushNotificationsProvider>
+        </ProfileProvider>
       </AuthProvider>
     </QueryClientProvider>
   );

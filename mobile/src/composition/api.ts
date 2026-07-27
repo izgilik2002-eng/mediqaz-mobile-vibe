@@ -1,5 +1,6 @@
 import { AuthApi, type AuthTransportKind } from '@/features/auth';
 import { NotificationsApi } from '@/features/notifications';
+import { UsersApi } from '@/features/users';
 import { ApiTransport } from '@/platform/api';
 import { SessionController } from '@/platform/session';
 
@@ -34,6 +35,7 @@ export function createMobileApis(input: {
   return {
     auth,
     notifications: new NotificationsApi(transport),
+    users: new UsersApi(transport),
   };
 }
 

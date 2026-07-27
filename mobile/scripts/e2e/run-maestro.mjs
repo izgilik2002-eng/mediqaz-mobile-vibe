@@ -24,7 +24,7 @@ const testIds = {
   LOGOUT_BUTTON_ID: 'auth.logout-button',
   NAME_INPUT_ID: 'auth.name-input',
   PASSWORD_INPUT_ID: 'auth.password-input',
-  PAYWALL_SCREEN_ID: 'paywall.screen',
+  APPROVAL_SCREEN_ID: 'approval.screen',
   SUBMIT_BUTTON_ID: 'auth.submit-button',
 }
 

@@ -93,7 +93,13 @@ export function AuthScreen() {
   }
 
   if (auth.user) {
-    return <Redirect href={'/components' as Href} />;
+    // An unapproved doctor goes straight to the waiting screen instead of
+    // bouncing through the tabs layout to be sent back.
+    return (
+      <Redirect
+        href={(auth.user.isApproved ? '/components' : '/pending-approval') as Href}
+      />
+    );
   }
 
   return (

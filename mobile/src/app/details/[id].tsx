@@ -7,23 +7,27 @@ import {
 } from '@/components/dashboard';
 import { ScreenLoader } from '@/components/screen-states';
 import { TEST_IDS } from '@/constants/testIds';
-import { useAuth } from '@/features/auth';
+import { useDoctorAccess } from '@/features/auth';
 
 export function generateStaticParams() {
   return [{ id: 'components' }];
 }
 
 export default function DetailsScreen() {
-  const auth = useAuth();
+  const access = useDoctorAccess();
   const params = useLocalSearchParams<{ id?: string | string[] }>();
   const detailsId = Array.isArray(params.id) ? params.id[0] : params.id;
 
-  if (auth.isBootstrapping) {
+  if (access.state === 'loading') {
     return <ScreenLoader />;
   }
 
-  if (!auth.user) {
+  if (access.state === 'signed-out') {
     return <Redirect href="/" />;
+  }
+
+  if (access.state === 'pending-approval') {
+    return <Redirect href={'/pending-approval' as Href} />;
   }
 
   return (

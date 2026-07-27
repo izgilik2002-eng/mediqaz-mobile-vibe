@@ -14,6 +14,9 @@ export { SocialAuthButtons } from './components/social-auth-buttons';
 export { AuthSessionErrorNotice } from './components/session-error-notice';
 export { SessionControls } from './components/session-controls';
 export { AuthScreen } from './screens/AuthScreen';
+export { PendingApprovalScreen } from './screens/PendingApprovalScreen';
+export { doctorAccessState, useDoctorAccess } from './access';
+export type { DoctorAccess } from './access';
 export {
   googleSignInConfigFromEnv,
   isGoogleSignInConfiguredForPlatform,

@@ -193,7 +193,7 @@ export function runMaestroPolicyAudit() {
     'auth-smoke.yaml must reopen DEV_CLIENT_URL after stopApp to avoid landing on the simulator home screen',
   )
   assert(
-    flow.includes('id: ${PAYWALL_SCREEN_ID}'),
+    flow.includes('id: ${APPROVAL_SCREEN_ID}'),
     'auth-smoke.yaml must assert the inactive subscriber paywall after registration and restore',
   )
   assert(!flow.includes('hideKeyboard'), 'auth-smoke.yaml must not use flaky hideKeyboard')
