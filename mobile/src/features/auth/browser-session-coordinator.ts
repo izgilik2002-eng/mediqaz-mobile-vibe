@@ -86,14 +86,27 @@ function acceptRemoteEvent(candidate: unknown) {
   listeners.forEach((listener) => listener(nextEvent));
 }
 
+/**
+ * React Native defines a `window` global that is the global object and carries
+ * no DOM event methods, so the methods are checked rather than the object: a
+ * `typeof window` test passes on native and then throws on the call.
+ */
+function hasDomEvents(): boolean {
+  return (
+    typeof window !== 'undefined' &&
+    typeof window.addEventListener === 'function' &&
+    typeof window.removeEventListener === 'function'
+  );
+}
+
 function attachStorageListener() {
-  if (storageListenerAttached || typeof window === 'undefined') return;
+  if (storageListenerAttached || !hasDomEvents()) return;
   window.addEventListener('storage', handleStorageEvent);
   storageListenerAttached = true;
 }
 
 function detachStorageListenerIfIdle() {
-  if (!storageListenerAttached || listeners.size > 0 || typeof window === 'undefined') return;
+  if (!storageListenerAttached || listeners.size > 0 || !hasDomEvents()) return;
   window.removeEventListener('storage', handleStorageEvent);
   storageListenerAttached = false;
 }
