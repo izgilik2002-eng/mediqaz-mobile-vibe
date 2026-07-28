@@ -47,18 +47,18 @@ export default function AppTabs() {
         ],
       }}>
       <RouterTabs.Screen
-        name="components"
+        name="appointment"
         options={{
-          title: 'Components',
+          title: 'Приём',
           tabBarLabel: ({ color }) => (
             <Typography colorValue={color} variant="caption" weight="700">
-              Components
+              Приём
             </Typography>
           ),
-          tabBarButtonTestID: TEST_IDS.tabs.componentsTab,
+          tabBarButtonTestID: TEST_IDS.tabs.appointmentTab,
           tabBarIcon: ({ color, size }) => (
             <SymbolView
-              name={{ ios: 'square.grid.2x2.fill', android: 'view_module', web: 'view_module' }}
+              name={{ ios: 'mic.fill', android: 'mic', web: 'mic' }}
               size={size}
               tintColor={color}
             />

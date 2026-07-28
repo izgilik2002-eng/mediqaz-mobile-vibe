@@ -501,7 +501,7 @@ test('mobile notifications API registers, unregisters, and sends test pushes wit
   await expect(
     client.sendTestPushNotification({
       body: 'Ready',
-      href: '/details/components',
+      href: '/appointment',
       title: 'Push',
     }),
   ).resolves.toEqual({ ok: true, outboxId: '018fd4f2-1f3a-7c88-bc49-333333333333' });
@@ -534,7 +534,7 @@ test('mobile notifications API registers, unregisters, and sends test pushes wit
       authorization: 'Bearer access-token',
       body: {
         body: 'Ready',
-        href: '/details/components',
+        href: '/appointment',
         title: 'Push',
       },
     },

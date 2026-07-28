@@ -97,7 +97,7 @@ export function AuthScreen() {
     // bouncing through the tabs layout to be sent back.
     return (
       <Redirect
-        href={(auth.user.isApproved ? '/components' : '/pending-approval') as Href}
+        href={(auth.user.isApproved ? '/appointment' : '/pending-approval') as Href}
       />
     );
   }

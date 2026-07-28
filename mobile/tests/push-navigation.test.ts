@@ -3,13 +3,13 @@ import { expect, test } from 'bun:test';
 import { isSafeInternalHref, resolveNotificationHref } from '../src/features/notifications/push-navigation';
 
 test('resolveNotificationHref accepts only internal Expo Router paths', () => {
-  expect(resolveNotificationHref({ href: '/details/components' })).toBe('/details/components');
+  expect(resolveNotificationHref({ href: '/appointment' })).toBe('/appointment');
   expect(resolveNotificationHref({ href: ' /profile ' })).toBe('/profile');
   expect(resolveNotificationHref({ href: 'https://example.com' })).toBeNull();
   expect(resolveNotificationHref({ href: '//example.com' })).toBeNull();
   expect(resolveNotificationHref({ href: 'mailto:user@example.com' })).toBeNull();
   expect(resolveNotificationHref({ href: '/bad\\path' })).toBeNull();
-  expect(resolveNotificationHref({ screen: '/details/components' })).toBeNull();
+  expect(resolveNotificationHref({ screen: '/appointment' })).toBeNull();
 });
 
 test('isSafeInternalHref enforces length and scheme constraints', () => {

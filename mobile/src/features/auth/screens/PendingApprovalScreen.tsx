@@ -29,7 +29,7 @@ export function PendingApprovalScreen() {
   }
 
   if (access.state === 'allowed') {
-    return <Redirect href="/components" />;
+    return <Redirect href="/appointment" />;
   }
 
   const recheck = async () => {

@@ -9,11 +9,6 @@ const flowPath = resolve(mobileRoot, '.maestro/flows/auth-smoke.yaml')
 const envExamplePath = resolve(mobileRoot, '.maestro/.env.example')
 const appPath = resolve(mobileRoot, 'src/features/auth/screens/AuthScreen.tsx')
 const screenShellPath = resolve(mobileRoot, 'src/components/dashboard/ScreenShell.tsx')
-const paywallPath = resolve(mobileRoot, 'src/features/billing/screens/PaywallScreen.tsx')
-const paywallComponentsPath = resolve(
-  mobileRoot,
-  'src/features/billing/components/paywall-components.tsx',
-)
 
 const requiredEnvKeys = [
   'APP_ID',
@@ -104,73 +99,10 @@ export function authScreenUsesKeyboardAwareShell(source) {
   return usesKeyboardAwareShell
 }
 
-export function nativePaywallLogoutHasTestId(screenSource, componentsSource) {
-  const screenFile = ts.createSourceFile(
-    paywallPath,
-    screenSource,
-    ts.ScriptTarget.Latest,
-    true,
-    ts.ScriptKind.TSX,
-  )
-  const componentsFile = ts.createSourceFile(
-    paywallComponentsPath,
-    componentsSource,
-    ts.ScriptTarget.Latest,
-    true,
-    ts.ScriptKind.TSX,
-  )
-  const paywallScreen = functionDeclaration(screenFile, 'PaywallScreen')
-  const accountActions = functionDeclaration(componentsFile, 'PaywallAccountActions')
-  const nativeReturn = paywallScreen?.body?.statements.find(ts.isReturnStatement)
-  let screenWiresLogout = false
-  let componentExposesTestId = false
-
-  function visitScreen(node) {
-    if (
-      ts.isJsxSelfClosingElement(node) &&
-      node.tagName.getText(screenFile) === 'PaywallAccountActions'
-    ) {
-      const onLogout = jsxAttribute(screenFile, node, 'onLogout')
-      screenWiresLogout ||= Boolean(
-        onLogout?.initializer?.getText(screenFile).includes('auth.logout'),
-      )
-    }
-
-    ts.forEachChild(node, visitScreen)
-  }
-
-  function visitComponent(node) {
-    if (
-      ts.isJsxElement(node) &&
-      node.openingElement.tagName.getText(componentsFile) === 'Button'
-    ) {
-      const onPress = jsxAttribute(componentsFile, node.openingElement, 'onPress')
-      const testId = jsxAttribute(componentsFile, node.openingElement, 'testID')
-
-      if (
-        onPress?.initializer?.getText(componentsFile) === '{onLogout}' &&
-        testId?.initializer?.getText(componentsFile) ===
-          '{TEST_IDS.auth.logoutButton}'
-      ) {
-        componentExposesTestId = true
-      }
-    }
-
-    ts.forEachChild(node, visitComponent)
-  }
-
-  if (nativeReturn?.expression) visitScreen(nativeReturn.expression)
-  if (accountActions?.body) visitComponent(accountActions.body)
-
-  return screenWiresLogout && componentExposesTestId
-}
-
 export function runMaestroPolicyAudit() {
   const flow = readRequiredFile(flowPath)
   const app = readRequiredFile(appPath)
   const screenShell = readRequiredFile(screenShellPath)
-  const paywall = readRequiredFile(paywallPath)
-  const paywallComponents = readRequiredFile(paywallComponentsPath)
   const envKeys = declaredEnvKeys(readRequiredFile(envExamplePath))
   const missingEnvKeys = requiredEnvKeys.filter((key) => !envKeys.has(key))
 
@@ -194,7 +126,7 @@ export function runMaestroPolicyAudit() {
   )
   assert(
     flow.includes('id: ${APPROVAL_SCREEN_ID}'),
-    'auth-smoke.yaml must assert the inactive subscriber paywall after registration and restore',
+    'auth-smoke.yaml must assert the approval gate after registration and restore',
   )
   assert(!flow.includes('hideKeyboard'), 'auth-smoke.yaml must not use flaky hideKeyboard')
   assert(
@@ -216,13 +148,11 @@ export function runMaestroPolicyAudit() {
       screenShell.includes('keyboardAvoiding={keyboardAware}'),
     'auth form must use the keyboard-aware ScreenShell with on-drag dismissal for iOS Maestro stability',
   )
-  assert(
-    nativePaywallLogoutHasTestId(paywall, paywallComponents),
-    'native PaywallScreen logout action must expose TEST_IDS.auth.logoutButton through PaywallAccountActions',
-  )
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+// `file://${process.argv[1]}` never matches import.meta.url on Windows, which
+// silently turned this audit into a no-op that still exited 0.
+if (import.meta.main) {
   runMaestroPolicyAudit()
   process.stdout.write('[maestro-policy-audit] ok\n')
 }

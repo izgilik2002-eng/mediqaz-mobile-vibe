@@ -56,14 +56,14 @@ export default function AppTabs() {
       <TabList asChild>
         {usesRail ? (
           <RailTabList>
-            <TabTrigger name="components" href="/components" asChild>
+            <TabTrigger name="appointment" href="/appointment" asChild>
               <RailTabButton
                 icon={{
                   ios: 'square.grid.2x2.fill',
                   android: 'view_module',
                   web: 'view_module',
                 }}
-                testID={TEST_IDS.tabs.componentsTab}>
+                testID={TEST_IDS.tabs.appointmentTab}>
                 Components
               </RailTabButton>
             </TabTrigger>
@@ -81,14 +81,14 @@ export default function AppTabs() {
           </RailTabList>
         ) : (
           <BottomTabList style={tabBarStyle}>
-            <TabTrigger name="components" href="/components" asChild>
+            <TabTrigger name="appointment" href="/appointment" asChild>
               <TabButton
                 icon={{
                   ios: 'square.grid.2x2.fill',
                   android: 'view_module',
                   web: 'view_module',
                 }}
-                testID={TEST_IDS.tabs.componentsTab}>
+                testID={TEST_IDS.tabs.appointmentTab}>
                 Components
               </TabButton>
             </TabTrigger>

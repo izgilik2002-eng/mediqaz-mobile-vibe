@@ -18,14 +18,9 @@ export const TEST_IDS = {
     screen: 'approval.screen',
     status: 'approval.status',
   },
-  components: {
-    catalog: 'components.catalog',
-    title: 'components.title',
-  },
-  details: {
-    backButton: 'details.back-button',
-    openButton: 'details.open-button',
-    screen: 'details.screen',
+  appointment: {
+    placeholder: 'appointment.placeholder',
+    screen: 'appointment.screen',
   },
   profile: {
     screen: 'profile.screen',
@@ -40,7 +35,7 @@ export const TEST_IDS = {
     backButton: 'screen.back-button',
   },
   tabs: {
-    componentsTab: 'tabs.components',
+    appointmentTab: 'tabs.appointment',
     profileTab: 'tabs.profile',
   },
 } as const;
