@@ -5,11 +5,15 @@ export function toAuthAppError(error: unknown) {
   if (!(error instanceof AuthFailure)) return error
 
   if (error.kind === 'email_already_exists') {
-    return new AppError(409, 'CONFLICT', error.message)
+    return new AppError(409, 'AUTH_EMAIL_ALREADY_EXISTS', 'Аккаунт с такой почтой уже существует.')
+  }
+
+  if (error.kind === 'invalid_credentials') {
+    return new AppError(401, 'AUTH_INVALID_CREDENTIALS', 'Неверная почта или пароль.')
   }
 
   if (error.kind === 'password_reset_invalid') {
-    return new AppError(400, 'AUTH_PASSWORD_RESET_INVALID', error.message)
+    return new AppError(400, 'AUTH_PASSWORD_RESET_INVALID', 'Ссылка для сброса пароля недействительна или устарела.')
   }
 
   if (error.kind === 'social_email_already_exists') {
@@ -36,7 +40,7 @@ export function toAuthAppError(error: unknown) {
     return new AppError(503, 'AUTH_PROVIDER_UNAVAILABLE', error.message)
   }
 
-  return new AppError(401, 'UNAUTHORIZED', error.message)
+  return new AppError(401, 'UNAUTHORIZED', 'Сессия истекла. Войдите заново.')
 }
 
 export async function executeAuth<T>(operation: () => Promise<T>): Promise<T> {

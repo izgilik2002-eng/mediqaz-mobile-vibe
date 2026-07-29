@@ -224,7 +224,7 @@ export function createConsultationRoutes(input: {
     // Generation and completion are decided by the backend; a device claiming
     // them would be asserting a medical record it did not produce.
     if (!isClientReportableStatus(status)) {
-      throw new AppError(400, 'BAD_REQUEST', 'Этот статус проставляет только сервер.')
+      throw new AppError(400, 'APPOINTMENT_STATUS_NOT_ASSIGNABLE', 'Этот статус проставляет только сервер.')
     }
 
     const appointment = await run(() =>
@@ -298,36 +298,36 @@ function toAppError(failure: ConsultationFailure) {
     case 'not_approved':
       return new AppError(
         403,
-        'FORBIDDEN',
+        'DOCTOR_NOT_APPROVED',
         'Ваш аккаунт ещё не одобрен администратором.',
       )
     case 'specialty_required':
       return new AppError(
         409,
-        'CONFLICT',
+        'DOCTOR_SPECIALTY_REQUIRED',
         'Укажите специальность в профиле, чтобы формировать медкарты.',
       )
     case 'appointment_not_found':
-      return new AppError(404, 'NOT_FOUND', 'Приём не найден.')
+      return new AppError(404, 'APPOINTMENT_NOT_FOUND', 'Приём не найден.')
     case 'appointment_already_finished':
-      return new AppError(409, 'CONFLICT', 'Этот приём уже завершён.')
+      return new AppError(409, 'APPOINTMENT_ALREADY_FINISHED', 'Этот приём уже завершён.')
     case 'transcription_unavailable':
       return new AppError(
         502,
-        'CONSULTATION_PROVIDER_UNAVAILABLE',
+        'CONSULTATION_TRANSCRIPTION_UNAVAILABLE',
         'Не удалось начать запись приёма. Попробуйте ещё раз.',
       )
     case 'med_card_unreadable':
       return new AppError(
         502,
-        'CONSULTATION_PROVIDER_UNAVAILABLE',
+        'CONSULTATION_MED_CARD_UNREADABLE',
         'Не удалось разобрать медкарту. Попробуйте сформировать её ещё раз.',
       )
     default:
       return new AppError(
         502,
         'CONSULTATION_PROVIDER_UNAVAILABLE',
-        'Модель временно недоступна. Попробуйте ещё раз.',
+        'Сервис временно недоступен. Попробуйте ещё раз.',
       )
   }
 }

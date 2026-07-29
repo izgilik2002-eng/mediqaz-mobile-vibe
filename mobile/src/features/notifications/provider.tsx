@@ -4,8 +4,10 @@ import { useRouter } from 'expo-router';
 import type * as Notifications from 'expo-notifications';
 import { createContext, type PropsWithChildren, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { Platform } from 'react-native';
+import { useTranslation } from 'react-i18next';
 
 import { useAuth } from '@/features/auth';
+import { apiErrorMessage } from '@/platform/api';
 import type { NotificationsApiPort } from './api';
 import {
   beginPushInstallationMutation,
@@ -41,6 +43,7 @@ export function PushNotificationsProvider({
   api: NotificationsApiPort;
   registrationCoordinator: PushRegistrationCoordinator;
 }>) {
+  const { t } = useTranslation();
   const auth = useAuth();
   const accountScope = auth.accountScope;
   const isAccountScopeCurrent = auth.isAccountScopeCurrent;
@@ -186,7 +189,7 @@ export function PushNotificationsProvider({
         setExpoPushToken(nextToken);
       } catch (registrationError) {
         if (isRegistrationCancelled()) return;
-        setError(registrationError instanceof Error ? registrationError.message : 'Push registration failed');
+        setError(apiErrorMessage(registrationError, t));
       }
     }
 
@@ -204,6 +207,7 @@ export function PushNotificationsProvider({
     loadNotifications,
     projectId,
     registrationCoordinator,
+    t,
   ]);
 
   useEffect(() => {

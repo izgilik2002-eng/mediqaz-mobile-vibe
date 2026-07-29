@@ -23,7 +23,7 @@ import { Button } from '@/components/ui/button';
 import { SocialAuthButtons } from '../components/social-auth-buttons';
 import { useAuth } from '../provider';
 import { TEST_IDS } from '@/constants/testIds';
-import { ApiRequestError } from '@/platform/api';
+import { apiErrorMessage, ApiRequestError } from '@/platform/api';
 
 const isE2eMode = process.env.EXPO_PUBLIC_E2E === '1';
 
@@ -57,7 +57,7 @@ export function AuthScreen() {
         }
       } catch (caughtError) {
         if (caughtError instanceof ApiRequestError) {
-          setError(caughtError.message);
+          setError(apiErrorMessage(caughtError, t));
           return;
         }
         setError(t('auth.unexpectedError'));

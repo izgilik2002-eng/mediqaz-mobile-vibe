@@ -196,9 +196,11 @@ describe('auth contracts', () => {
         details: [{ path: ['email'], message: 'Invalid email address' }],
       },
     })
-    expect(() =>
+    // A code this client build has never seen still parses — see errors.ts
+    // for why the wire schema does not reject unknown codes.
+    expect(
       apiErrorSchema.parse({ error: { code: 'SOMETHING_ELSE', message: 'Nope' } }),
-    ).toThrow()
+    ).toEqual({ error: { code: 'SOMETHING_ELSE', message: 'Nope' } })
     expect(
       apiErrorSchema.parse({
         error: { code: 'AUTH_PROVIDER_NOT_CONFIGURED', message: 'Provider is not configured' },

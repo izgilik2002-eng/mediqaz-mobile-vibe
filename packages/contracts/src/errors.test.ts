@@ -35,10 +35,15 @@ describe('api error contract', () => {
     }
   })
 
-  test('rejects codes outside the enum so the backend cannot invent one silently', () => {
+  test('apiErrorCodeSchema stays closed so the backend cannot invent a code when constructing a response', () => {
     expect(() => apiErrorCodeSchema.parse('SOMETHING_NEW')).toThrow()
-    expect(() =>
-      apiErrorSchema.parse({ error: { code: 'SOMETHING_NEW', message: 'nope' } }),
-    ).toThrow()
+  })
+
+  test('apiErrorSchema accepts a code it does not recognize, so a server ahead of an older client still parses', () => {
+    const parsed = apiErrorSchema.parse({
+      error: { code: 'SOMETHING_NEW', message: 'A message this client build has never seen' },
+    })
+    expect(parsed.error.code).toBe('SOMETHING_NEW')
+    expect(parsed.error.message).toBe('A message this client build has never seen')
   })
 })

@@ -1,4 +1,5 @@
 import { expect, test } from 'bun:test';
+import { apiErrorCodeSchema } from '@mediqaz/contracts';
 
 import kk from '../src/i18n/kk.json';
 import ru from '../src/i18n/ru.json';
@@ -45,6 +46,12 @@ test('no translation value is left empty', () => {
   };
   walk(ru, '');
   walk(kk, '');
+});
+
+test('every backend error code has a Russian translation, so a missing one fails here instead of reaching a doctor as raw text', () => {
+  for (const code of apiErrorCodeSchema.options) {
+    expect(ru.errors[code as keyof typeof ru.errors], `missing ru.json translation for ${code}`).toBeTruthy();
+  }
 });
 
 test('device language is used when the app ships it', () => {

@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Typography } from '@/components/ui/typography';
 import { useUiTheme } from '@/components/ui/theme';
 import { TEST_IDS } from '@/constants/testIds';
-import { ApiRequestError } from '@/platform/api';
+import { apiErrorMessage, ApiRequestError, type Translate } from '@/platform/api';
 import {
   googleSignInConfigFromEnv,
   isGoogleSignInConfiguredForPlatform,
@@ -263,8 +263,6 @@ function SocialButton({
   );
 }
 
-type Translate = (key: string, values?: Record<string, string>) => string;
-
 // Provider names stay as-is: Apple and Google are brands, not UI copy.
 export function socialAuthErrorMessage(
   provider: SocialAuthProvider,
@@ -288,7 +286,7 @@ export function socialAuthErrorMessage(
       case 'AUTH_PROVIDER_UNAVAILABLE':
         return t('social.unavailable', { provider: providerName });
       default:
-        return error.message;
+        return apiErrorMessage(error, t);
     }
   }
 

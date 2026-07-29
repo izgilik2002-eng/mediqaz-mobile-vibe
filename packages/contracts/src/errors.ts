@@ -62,7 +62,16 @@ export const apiErrorParamsSchema = z.record(z.string(), z.string())
 
 export const apiErrorSchema = z.object({
   error: z.object({
-    code: apiErrorCodeSchema,
+    /**
+     * A loose string, not apiErrorCodeSchema: a server deployed ahead of an
+     * older client can send a code that client's bundled enum has never seen.
+     * If this rejected the response, the whole payload — including `message`
+     * — would fail to parse, and the client would fall back to a raw HTTP
+     * status instead of the server's real (if untranslated) text. Backend
+     * response construction still goes through AppError, which is typed to
+     * apiErrorCodeSchema, so the server itself can never emit an invented code.
+     */
+    code: z.string(),
     /**
      * Резервный текст на случай, когда у клиента нет перевода для кода. Виден
      * пользователю, поэтому не должен содержать внутренних деталей.

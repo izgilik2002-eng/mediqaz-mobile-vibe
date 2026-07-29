@@ -166,13 +166,13 @@ export function createNotificationRoutes(input: {
       c.req.valid('json'),
     )
     if (result === 'inactive-session') {
-      throw new AppError(401, 'UNAUTHORIZED', 'Session expired during push registration')
+      throw new AppError(401, 'UNAUTHORIZED', 'Сессия истекла. Войдите заново.')
     }
     if (result === 'forbidden') {
-      throw new AppError(403, 'FORBIDDEN', 'Push installation authority was rejected')
+      throw new AppError(403, 'PUSH_INSTALLATION_REJECTED', 'Не удалось подтвердить это устройство. Попробуйте ещё раз.')
     }
     if (result === 'stale') {
-      throw new AppError(409, 'CONFLICT', 'A newer push installation registration already exists')
+      throw new AppError(409, 'PUSH_REGISTRATION_STALE', 'Уведомления уже настроены на другом устройстве.')
     }
     return c.json({ applied: true as const, ok: true as const }, 200)
   })
@@ -185,28 +185,28 @@ export function createNotificationRoutes(input: {
       c.req.valid('json'),
     )
     if (result === 'inactive-session') {
-      throw new AppError(401, 'UNAUTHORIZED', 'Session expired during push unregistration')
+      throw new AppError(401, 'UNAUTHORIZED', 'Сессия истекла. Войдите заново.')
     }
     if (result === 'forbidden') {
-      throw new AppError(403, 'FORBIDDEN', 'Push installation authority was rejected')
+      throw new AppError(403, 'PUSH_INSTALLATION_REJECTED', 'Не удалось подтвердить это устройство. Попробуйте ещё раз.')
     }
     return c.json({ applied: result === 'applied', ok: true as const }, 200)
   })
 
   routes.openapi(testPushRoute, async (c) => {
     if (!input.testPushEnabled) {
-      throw new AppError(404, 'NOT_FOUND', 'Test push endpoint is disabled')
+      throw new AppError(404, 'NOT_FOUND', 'This endpoint is disabled')
     }
 
     const userId = await currentUserId(c, input.authenticateAccessToken)
 
     if (!(await input.service.hasActiveToken(userId))) {
-      throw new AppError(409, 'CONFLICT', 'No active Expo push token registered for this user')
+      throw new AppError(409, 'PUSH_TOKEN_MISSING', 'Синхронизация с телефоном недоступна. Попробуйте позже.')
     }
 
     const queued = await input.service.sendTestPush(userId, c.req.valid('json'))
     if (!queued.created) {
-      throw new AppError(429, 'RATE_LIMITED', 'Test push is limited to once per minute')
+      throw new AppError(429, 'RATE_LIMITED', 'Слишком много попыток. Подождите немного.')
     }
 
     return c.json({ ok: true as const, outboxId: queued.id }, 200)

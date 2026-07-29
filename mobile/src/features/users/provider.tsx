@@ -4,7 +4,7 @@ import { createContext, useCallback, useContext, useMemo, useState, type PropsWi
 import { useTranslation } from 'react-i18next';
 
 import { useAuth } from '@/features/auth';
-import { ApiRequestError } from '@/platform/api';
+import { apiErrorMessage, ApiRequestError } from '@/platform/api';
 import type { UsersApi } from './api';
 
 type ProfileContextValue = {
@@ -43,7 +43,7 @@ export function ProfileProvider({
       } catch (caughtError) {
         setError(
           caughtError instanceof ApiRequestError
-            ? caughtError.message
+            ? apiErrorMessage(caughtError, t)
             : t('profile.specialtySaveFailed'),
         );
         return false;
