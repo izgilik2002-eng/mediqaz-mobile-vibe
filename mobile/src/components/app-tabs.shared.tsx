@@ -14,7 +14,9 @@ import { TEST_IDS } from '@/constants/testIds';
 export default function AppTabs() {
   const theme = useUiTheme();
   const insets = useSafeAreaInsets();
-  const tabBarHeight = 56 + Math.max(insets.bottom, theme.spacing.sm);
+  // 64 leaves room for the icon, the gap the navigator puts under it, and the
+  // caption line height once the bar's own vertical padding is taken out.
+  const tabBarHeight = 64 + Math.max(insets.bottom, theme.spacing.sm);
 
   return (
     <RouterTabs
@@ -27,14 +29,11 @@ export default function AppTabs() {
         tabBarHideOnKeyboard: true,
         tabBarInactiveBackgroundColor: theme.colors.transparent,
         tabBarInactiveTintColor: theme.colors.mutedForeground,
-        tabBarItemStyle: [
-          styles.tabBarItem,
-          {
-            borderRadius: theme.radius.lg,
-            marginHorizontal: theme.spacing.xs,
-            paddingVertical: theme.spacing.xs,
-          },
-        ],
+        tabBarItemStyle: {
+          borderRadius: theme.radius.lg,
+          marginHorizontal: theme.spacing.xs,
+          paddingVertical: theme.spacing.xs,
+        },
         tabBarStyle: [
           styles.tabBar,
           {
@@ -108,8 +107,5 @@ const styles = StyleSheet.create({
     borderTopWidth: StyleSheet.hairlineWidth,
     elevation: 0,
     shadowOpacity: 0,
-  },
-  tabBarItem: {
-    overflow: 'hidden',
   },
 });
