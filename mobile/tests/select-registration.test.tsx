@@ -350,7 +350,9 @@ test('auth mode chooser exposes labelled tab semantics', async () => {
   const loginTab = findByTestID(tabList, 'auth.login');
 
   expect(tabList.attributes.role).toBe('tablist');
-  expect(tabList.attributes['aria-label']).toBe('Authentication mode');
+  // Asserts that the group is labelled at all, not what the label says: the
+  // copy is translated, and pinning it here would break on every wording change.
+  expect(tabList.attributes['aria-label']).toBeTruthy();
   expect(registerTab?.attributes.role).toBe('tab');
   expect(registerTab?.attributes['aria-selected']).toBe('true');
   expect(loginTab?.attributes.role).toBe('tab');

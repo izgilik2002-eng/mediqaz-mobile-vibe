@@ -128,6 +128,20 @@ export function runMaestroPolicyAudit() {
     flow.includes('id: ${APPROVAL_SCREEN_ID}'),
     'auth-smoke.yaml must assert the approval gate after registration and restore',
   )
+  assert(
+    flow.includes('id: ${AUTH_SCREEN_ID}'),
+    'auth-smoke.yaml must wait for the auth screen by testID',
+  )
+  // `Open` is the Android deep-link chooser, owned by the system rather than by
+  // this app, so it stays a text selector; everything the app renders must not.
+  const appOwnedTextSelectors = flow
+    .split(/\r?\n/)
+    .map((line) => line.match(/^\s*(?:visible|assertVisible|tapOn):\s*(\S.*)$/)?.[1])
+    .filter((value) => value !== undefined && value !== 'Open' && !value.startsWith('$'))
+  assert(
+    appOwnedTextSelectors.length === 0,
+    `auth-smoke.yaml must select by testID, not by visible text: translating a label would silently break the flow (${appOwnedTextSelectors.join(', ')})`,
+  )
   assert(!flow.includes('hideKeyboard'), 'auth-smoke.yaml must not use flaky hideKeyboard')
   assert(
     flow.includes('centerElement: true') && flow.includes('visibilityPercentage: 100'),

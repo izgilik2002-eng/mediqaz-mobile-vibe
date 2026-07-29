@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import type { ComponentProps, ReactNode } from 'react';
 import { StyleSheet, View } from 'react-native';
 
@@ -89,11 +90,13 @@ export function AuthSubmitButton({
 }
 
 export function AuthError({ message }: { message?: string | null }) {
+  const { t } = useTranslation();
+
   if (!message) return null;
 
   return (
     <Alert accessibilityLiveRegion="polite" variant="destructive">
-      <AlertTitle>Authentication failed</AlertTitle>
+      <AlertTitle>{t('auth.errorTitle')}</AlertTitle>
       <AlertDescription>{message}</AlertDescription>
     </Alert>
   );

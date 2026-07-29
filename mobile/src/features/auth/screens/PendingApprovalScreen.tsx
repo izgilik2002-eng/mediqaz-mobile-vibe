@@ -1,5 +1,6 @@
 import { Redirect } from 'expo-router';
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import { ScreenShell, SectionCard } from '@/components/dashboard';
 import { ScreenLoader } from '@/components/screen-states';
@@ -16,6 +17,7 @@ import { useAuth } from '../provider';
  * having to force-quit and reopen to notice it landed.
  */
 export function PendingApprovalScreen() {
+  const { t } = useTranslation();
   const auth = useAuth();
   const access = useDoctorAccess();
   const [isChecking, setIsChecking] = useState(false);
@@ -46,14 +48,14 @@ export function PendingApprovalScreen() {
 
   return (
     <ScreenShell
-      description="Доступ открывает администратор вручную. Обычно это занимает не больше рабочего дня."
-      eyebrow="MediQaz"
+      description={t('approval.description')}
+      eyebrow={t('approval.eyebrow')}
       testID={TEST_IDS.approval.screen}
-      title="Аккаунт на проверке">
+      title={t('approval.title')}>
       <SectionCard
-        description="Как только доступ откроют, вы сможете записывать приёмы."
+        description={t('approval.statusDescription')}
         testID={TEST_IDS.approval.status}
-        title="Ожидает активации">
+        title={t('approval.statusTitle')}>
         <Typography muted testID={TEST_IDS.approval.email} variant="bodySm">
           {access.user.email}
         </Typography>
@@ -62,7 +64,7 @@ export function PendingApprovalScreen() {
           loading={isChecking}
           testID={TEST_IDS.approval.recheckButton}
           onPress={() => void recheck()}>
-          Проверить снова
+          {t('approval.recheck')}
         </Button>
       </SectionCard>
 

@@ -4,6 +4,7 @@ import {
 import type { BottomTabBarButtonProps } from 'expo-router/js-tabs';
 import { PlatformPressable } from 'expo-router/react-navigation';
 import { SymbolView } from 'expo-symbols';
+import { useTranslation } from 'react-i18next';
 import { StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -12,6 +13,7 @@ import { useUiTheme } from '@/components/ui/theme';
 import { TEST_IDS } from '@/constants/testIds';
 
 export default function AppTabs() {
+  const { t } = useTranslation();
   const theme = useUiTheme();
   const insets = useSafeAreaInsets();
   // 64 leaves room for the icon, the gap the navigator puts under it, and the
@@ -48,10 +50,10 @@ export default function AppTabs() {
       <RouterTabs.Screen
         name="appointment"
         options={{
-          title: 'Приём',
+          title: t('tabs.appointment'),
           tabBarLabel: ({ color }) => (
             <Typography colorValue={color} variant="caption" weight="700">
-              Приём
+              {t('tabs.appointment')}
             </Typography>
           ),
           tabBarButtonTestID: TEST_IDS.tabs.appointmentTab,
@@ -67,10 +69,10 @@ export default function AppTabs() {
       <RouterTabs.Screen
         name="profile"
         options={{
-          title: 'Profile',
+          title: t('tabs.profile'),
           tabBarLabel: ({ color }) => (
             <Typography colorValue={color} variant="caption" weight="700">
-              Profile
+              {t('tabs.profile')}
             </Typography>
           ),
           tabBarButtonTestID: TEST_IDS.tabs.profileTab,

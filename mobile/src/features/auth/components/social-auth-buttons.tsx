@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import type { SocialAuthProvider, SocialAuthRequest } from '@mediqaz/contracts';
 import * as AppleAuthentication from 'expo-apple-authentication';
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -31,6 +32,7 @@ export function SocialAuthButtons({
   onAuthenticate,
   onError,
 }: SocialAuthButtonsProps) {
+  const { t } = useTranslation();
   const theme = useUiTheme();
   const [pendingProvider, setPendingProvider] = useState<PendingProvider>(null);
   const [isAppleAvailable, setIsAppleAvailable] = useState(false);
@@ -136,7 +138,7 @@ export function SocialAuthButtons({
       await exchangeProviderToken('google', idToken, response.data.user.name ?? undefined);
     } catch (error) {
       if (isBenignGoogleError(error, google)) return;
-      onError(socialAuthErrorMessage('google', error));
+      onError(socialAuthErrorMessage('google', error, t));
     } finally {
       setPendingProvider(null);
     }
@@ -165,7 +167,7 @@ export function SocialAuthButtons({
       );
     } catch (error) {
       if (isAppleSignInCancelled(error)) return;
-      onError(socialAuthErrorMessage('apple', error));
+      onError(socialAuthErrorMessage('apple', error, t));
     } finally {
       setPendingProvider(null);
     }
@@ -205,7 +207,7 @@ export function SocialAuthButtons({
       )}
       {isGoogleAvailable && (
         <SocialButton
-          label="Continue with Google"
+          label={t('social.continueWithGoogle')}
           mark="G"
           loading={isGoogleLoading}
           disabled={disabled || isAppleLoading}
@@ -261,29 +263,36 @@ function SocialButton({
   );
 }
 
-function socialAuthErrorMessage(provider: SocialAuthProvider, error: unknown) {
+type Translate = (key: string, values?: Record<string, string>) => string;
+
+// Provider names stay as-is: Apple and Google are brands, not UI copy.
+export function socialAuthErrorMessage(
+  provider: SocialAuthProvider,
+  error: unknown,
+  t: Translate,
+) {
   const providerName = provider === 'apple' ? 'Apple' : 'Google';
 
   if (error instanceof ApiRequestError) {
     switch (error.code) {
       case 'AUTH_EMAIL_ALREADY_EXISTS':
-        return 'An account with this email already exists. Log in with email and password.';
+        return t('social.emailAlreadyExists');
       case 'AUTH_INVALID_PROVIDER_TOKEN':
-        return `${providerName} sign-in failed. Please try again.`;
+        return t('social.invalidProviderToken', { provider: providerName });
       case 'AUTH_PROVIDER_ACCOUNT_ALREADY_LINKED':
-        return `This ${providerName} account is already linked to another user.`;
+        return t('social.accountAlreadyLinked', { provider: providerName });
       case 'AUTH_PROVIDER_EMAIL_REQUIRED':
-        return `${providerName} did not share an email address. Try another sign-in method.`;
+        return t('social.emailRequired', { provider: providerName });
       case 'AUTH_PROVIDER_NOT_CONFIGURED':
-        return `${providerName} sign-in is not configured yet.`;
+        return t('social.notConfigured', { provider: providerName });
       case 'AUTH_PROVIDER_UNAVAILABLE':
-        return `${providerName} sign-in is temporarily unavailable. Please try again.`;
+        return t('social.unavailable', { provider: providerName });
       default:
         return error.message;
     }
   }
 
-  return `${providerName} sign-in failed. Please try again.`;
+  return t('social.failed', { provider: providerName });
 }
 
 function isBenignGoogleError(error: unknown, google: GoogleSignInModule | null) {

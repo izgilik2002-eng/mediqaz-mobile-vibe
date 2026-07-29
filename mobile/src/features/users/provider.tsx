@@ -1,6 +1,8 @@
 import type { DoctorSpecialty } from '@mediqaz/contracts';
 import { createContext, useCallback, useContext, useMemo, useState, type PropsWithChildren } from 'react';
 
+import { useTranslation } from 'react-i18next';
+
 import { useAuth } from '@/features/auth';
 import { ApiRequestError } from '@/platform/api';
 import type { UsersApi } from './api';
@@ -17,6 +19,7 @@ export function ProfileProvider({
   api,
   children,
 }: PropsWithChildren<{ api: Pick<UsersApi, 'updateProfile'> }>) {
+  const { t } = useTranslation();
   const auth = useAuth();
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -41,14 +44,14 @@ export function ProfileProvider({
         setError(
           caughtError instanceof ApiRequestError
             ? caughtError.message
-            : 'Не удалось сохранить специальность. Проверьте связь и попробуйте ещё раз.',
+            : t('profile.specialtySaveFailed'),
         );
         return false;
       } finally {
         setIsSaving(false);
       }
     },
-    [api, auth],
+    [api, auth, t],
   );
 
   const value = useMemo(

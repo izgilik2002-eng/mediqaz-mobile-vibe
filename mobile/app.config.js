@@ -18,6 +18,7 @@ const plugins = [
   'expo-notifications',
   'expo-status-bar',
   'expo-apple-authentication',
+  'expo-localization',
 ];
 
 if (googleIosUrlScheme) {

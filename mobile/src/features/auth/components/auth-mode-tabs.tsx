@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { StyleSheet, View } from 'react-native';
 
 import { UiPressable } from '@/components/ui/primitives';
@@ -21,11 +22,13 @@ export function AuthModeTabs({
   onModeChange,
   registerTestID,
 }: AuthModeTabsProps) {
+  const { t } = useTranslation();
+
   const theme = useUiTheme();
 
   return (
     <View
-      accessibilityLabel="Authentication mode"
+      accessibilityLabel={t('auth.modeLabel')}
       accessibilityRole="tablist"
       style={[
         styles.tabs,
@@ -39,14 +42,14 @@ export function AuthModeTabs({
       <AuthModeTab
         active={mode === 'register'}
         disabled={disabled}
-        label="Register"
+        label={t('auth.registerTab')}
         testID={registerTestID}
         onPress={() => onModeChange('register')}
       />
       <AuthModeTab
         active={mode === 'login'}
         disabled={disabled}
-        label="Login"
+        label={t('auth.loginTab')}
         testID={loginTestID}
         onPress={() => onModeChange('login')}
       />

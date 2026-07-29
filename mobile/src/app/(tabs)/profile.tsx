@@ -1,3 +1,5 @@
+import { useTranslation } from 'react-i18next';
+
 import { AccountSummary, ScreenShell } from '@/components/dashboard';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { TEST_IDS } from '@/constants/testIds';
@@ -6,9 +8,12 @@ import {
   SessionControls,
   useAuth,
 } from '@/features/auth';
-import { SpecialtySection, useProfile } from '@/features/users';
+import { LanguageSection, SpecialtySection, useProfile } from '@/features/users';
+import { useDateFormat } from '@/i18n/format';
 
 export default function ProfileScreen() {
+  const { t } = useTranslation();
+  const formatDate = useDateFormat();
   const auth = useAuth();
   const profile = useProfile();
 
@@ -16,13 +21,19 @@ export default function ProfileScreen() {
 
   return (
     <ScreenShell
-      description="Проверьте свои данные и специальность, от которой зависит медкарта."
-      eyebrow="Аккаунт"
+      description={t('profile.description')}
+      eyebrow={t('profile.eyebrow')}
       testID={TEST_IDS.profile.screen}
-      title="Профиль">
+      title={t('profile.title')}>
       <AccountSummary
-        badge={auth.user.role === 'admin' ? 'Admin' : 'Врач'}
-        description={`В MediQaz с ${formatAccountDate(auth.user.createdAt)}`}
+        badge={auth.user.role === 'admin' ? t('profile.badgeAdmin') : t('profile.badgeDoctor')}
+        description={t('profile.memberSince', {
+          date: formatDate(auth.user.createdAt, {
+            day: 'numeric',
+            month: 'short',
+            year: 'numeric',
+          }),
+        })}
         displayName={auth.user.displayName}
         email={auth.user.email}
       />
@@ -41,18 +52,12 @@ export default function ProfileScreen() {
         onSave={(specialty) => void profile.saveSpecialty(specialty)}
       />
 
+      <LanguageSection />
+
       <SessionControls
         isLoggingOut={auth.isTransitioning}
         onLogout={() => void auth.logout().catch(() => undefined)}
       />
     </ScreenShell>
   );
-}
-
-function formatAccountDate(createdAt: string) {
-  return new Intl.DateTimeFormat('ru', {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-  }).format(new Date(createdAt));
 }

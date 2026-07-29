@@ -1,4 +1,5 @@
 import { SymbolView } from 'expo-symbols';
+import { useTranslation } from 'react-i18next';
 
 import { ScreenShell } from '@/components/dashboard';
 import {
@@ -12,13 +13,14 @@ import { useUiTheme } from '@/components/ui/theme';
 import { TEST_IDS } from '@/constants/testIds';
 
 export default function AppointmentScreen() {
+  const { t } = useTranslation();
   const theme = useUiTheme();
 
   return (
     <ScreenShell
-      eyebrow="MediQaz"
+      eyebrow={t('appointment.eyebrow')}
       testID={TEST_IDS.appointment.screen}
-      title="Приём">
+      title={t('appointment.title')}>
       <Empty testID={TEST_IDS.appointment.placeholder}>
         <EmptyHeader>
           <EmptyMedia>
@@ -28,9 +30,9 @@ export default function AppointmentScreen() {
               tintColor={theme.colors.mutedForeground}
             />
           </EmptyMedia>
-          <EmptyTitle>Скоро здесь появится запись приёма</EmptyTitle>
+          <EmptyTitle>{t('appointment.placeholderTitle')}</EmptyTitle>
           <EmptyDescription>
-            Вы сможете записать приём, а ассистент составит медкарту.
+            {t('appointment.placeholderDescription')}
           </EmptyDescription>
         </EmptyHeader>
       </Empty>

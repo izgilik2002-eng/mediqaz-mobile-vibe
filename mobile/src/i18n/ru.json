@@ -1,0 +1,94 @@
+{
+  "common": {
+    "appName": "MediQaz",
+    "tryAgain": "Попробовать снова",
+    "cancel": "Отмена",
+    "save": "Сохранить"
+  },
+  "auth": {
+    "eyebrow": "MediQaz",
+    "title": "Помощник врача",
+    "subtitle": "Войдите по почте и паролю или через доступный сервис входа.",
+    "modeLabel": "Способ входа",
+    "registerTab": "Регистрация",
+    "loginTab": "Вход",
+    "registerPanelTitle": "Создание аккаунта",
+    "registerPanelDescription": "Создайте аккаунт врача. Доступ к записи приёмов открывает администратор.",
+    "loginPanelTitle": "С возвращением",
+    "loginPanelDescription": "Введите данные существующего аккаунта.",
+    "nameLabel": "Имя",
+    "emailLabel": "Почта",
+    "passwordLabel": "Пароль",
+    "submitRegister": "Создать аккаунт",
+    "submitLogin": "Войти",
+    "submitWorking": "Выполняется...",
+    "errorTitle": "Не удалось войти",
+    "unexpectedError": "Непредвиденная ошибка входа",
+    "sessionRecoveryEyebrow": "Восстановление сессии",
+    "sessionRecoveryTitle": "Ваша сессия сохранена.",
+    "sessionRecoveryDescription": "Приложение сохранило доступ на устройстве и продолжит работу после подтверждения сессии сервером.",
+    "sessionRecoveryRetry": "Повторить восстановление сессии",
+    "sessionUnreachableTitle": "Не удалось связаться с сервером",
+    "sessionNoticeTitle": "Требуется внимание к сессии",
+    "sessionCardTitle": "Текущая сессия",
+    "sessionCardDescription": "Выход завершит эту сессию и удалит сохранённые данные входа с устройства.",
+    "logout": "Выйти"
+  },
+  "social": {
+    "continueWithGoogle": "Войти через Google",
+    "emailAlreadyExists": "Аккаунт с такой почтой уже существует. Войдите по почте и паролю.",
+    "invalidProviderToken": "Не удалось войти через {{provider}}. Попробуйте ещё раз.",
+    "accountAlreadyLinked": "Этот аккаунт {{provider}} уже привязан к другому пользователю.",
+    "emailRequired": "{{provider}} не передал адрес почты. Выберите другой способ входа.",
+    "notConfigured": "Вход через {{provider}} пока не настроен.",
+    "unavailable": "Вход через {{provider}} временно недоступен. Попробуйте ещё раз.",
+    "failed": "Не удалось войти через {{provider}}. Попробуйте ещё раз."
+  },
+  "approval": {
+    "eyebrow": "MediQaz",
+    "title": "Аккаунт на проверке",
+    "description": "Доступ открывает администратор вручную. Обычно это занимает не больше рабочего дня.",
+    "statusTitle": "Ожидает активации",
+    "statusDescription": "Как только доступ откроют, вы сможете записывать приёмы.",
+    "recheck": "Проверить снова"
+  },
+  "appointment": {
+    "eyebrow": "MediQaz",
+    "title": "Приём",
+    "placeholderTitle": "Скоро здесь появится запись приёма",
+    "placeholderDescription": "Вы сможете записать приём, а ассистент составит медкарту."
+  },
+  "profile": {
+    "eyebrow": "Аккаунт",
+    "title": "Профиль",
+    "description": "Проверьте свои данные и специальность, от которой зависит медкарта.",
+    "badgeAdmin": "Администратор",
+    "badgeDoctor": "Врач",
+    "memberSince": "В MediQaz с {{date}}",
+    "specialtyTitle": "Специальность",
+    "specialtyDescription": "Ассистент составляет медкарту от лица врача этой специальности: от неё зависят формулировки, термины и на что он обращает внимание. Менять можно в любой момент — новая специальность применится к следующим приёмам.",
+    "specialtyMissing": "Пока специальность не выбрана, медкарту сформировать не получится.",
+    "specialtySelectLabel": "Выберите специальность",
+    "specialtySave": "Сохранить специальность",
+    "specialtySaveFailed": "Не удалось сохранить специальность. Проверьте связь и попробуйте ещё раз.",
+    "languageTitle": "Язык интерфейса",
+    "languageDescription": "Язык определяется настройками устройства. Здесь его можно задать вручную.",
+    "languageSelectLabel": "Выберите язык интерфейса"
+  },
+  "specialty": {
+    "therapist": "Терапевт",
+    "pediatrician": "Педиатр",
+    "cardiologist": "Кардиолог",
+    "surgeon": "Хирург",
+    "ent": "ЛОР",
+    "neurologist": "Невролог"
+  },
+  "language": {
+    "ru": "Русский",
+    "kk": "Қазақша"
+  },
+  "tabs": {
+    "appointment": "Приём",
+    "profile": "Профиль"
+  }
+}

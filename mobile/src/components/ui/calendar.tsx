@@ -1,4 +1,6 @@
 import { useMemo } from 'react';
+
+import { useDateFormat } from '@/i18n/format';
 import { StyleSheet, View, type PressableProps, type StyleProp, type ViewProps, type ViewStyle } from 'react-native';
 
 import { Button } from './button';
@@ -51,8 +53,9 @@ export function Calendar({
     defaultValue: undefined,
     onChange: onSelect,
   });
+  const formatDate = useDateFormat();
   const dates = useMemo(() => buildCalendarMonth(visibleMonth), [visibleMonth]);
-  const monthLabel = visibleMonth.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+  const monthLabel = formatDate(visibleMonth, { month: 'long', year: 'numeric' });
 
   return (
     <View {...props} style={[styles.calendar, { gap: theme.spacing.md }, style]}>

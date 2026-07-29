@@ -7,6 +7,7 @@ import {
 } from '@mediqaz/contracts';
 import { Redirect, type Href } from 'expo-router';
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import {
   AuthError,
@@ -27,6 +28,7 @@ import { ApiRequestError } from '@/platform/api';
 const isE2eMode = process.env.EXPO_PUBLIC_E2E === '1';
 
 export function AuthScreen() {
+  const { t } = useTranslation();
   const auth = useAuth();
   const [mode, setMode] = useState<AuthMode>('register');
   const [error, setError] = useState<string | null>(null);
@@ -58,7 +60,7 @@ export function AuthScreen() {
           setError(caughtError.message);
           return;
         }
-        setError('Unexpected auth error');
+        setError(t('auth.unexpectedError'));
       }
     },
   });
@@ -71,22 +73,22 @@ export function AuthScreen() {
     return (
       <ScreenShell
         centered
-        description="The app preserved your local authority and will only continue after the server confirms the session."
-        eyebrow="Session recovery"
-        title="Your session is still safe.">
+        description={t('auth.sessionRecoveryDescription')}
+        eyebrow={t('auth.sessionRecoveryEyebrow')}
+        title={t('auth.sessionRecoveryTitle')}>
         <ScreenState
           action={
             <Button
-              accessibilityLabel="Retry session recovery"
+              accessibilityLabel={t('auth.sessionRecoveryRetry')}
               disabled={auth.isTransitioning}
               loading={auth.isTransitioning}
               onPress={() => void auth.retrySession()}>
-              Try again
+              {t('common.tryAgain')}
             </Button>
           }
           description={auth.sessionError}
           status="error"
-          title="We could not reach the server"
+          title={t('auth.sessionUnreachableTitle')}
         />
       </ScreenShell>
     );
@@ -105,18 +107,19 @@ export function AuthScreen() {
   return (
     <ScreenShell
       centered
-      description="Use email and password or continue with an available identity provider."
-      eyebrow="Golden path template"
+      description={t('auth.subtitle')}
+      eyebrow={t('auth.eyebrow')}
       keyboardAware
-      title="Welcome to your workspace.">
+      testID={TEST_IDS.auth.screen}
+      title={t('auth.title')}>
 
       <AuthPanel
         description={
           isRegister
-            ? 'Create a user account. Account roles are assigned securely by the server.'
-            : 'Enter your existing account credentials to continue.'
+            ? t('auth.registerPanelDescription')
+            : t('auth.loginPanelDescription')
         }
-        title={isRegister ? 'Create an account' : 'Welcome back'}>
+        title={isRegister ? t('auth.registerPanelTitle') : t('auth.loginPanelTitle')}>
         <AuthModeTabs
           disabled={auth.isTransitioning}
           mode={mode}
@@ -129,7 +132,7 @@ export function AuthScreen() {
           <form.Field name="displayName">
             {(field) => (
               <AuthTextField
-                label="Name"
+                label={t('auth.nameLabel')}
                 testID={TEST_IDS.auth.nameInput}
                 value={field.state.value ?? ''}
                 autoComplete="name"
@@ -144,7 +147,7 @@ export function AuthScreen() {
         <form.Field name="email">
           {(field) => (
             <AuthTextField
-              label="Email"
+              label={t('auth.emailLabel')}
               testID={TEST_IDS.auth.emailInput}
               value={field.state.value}
               autoCapitalize="none"
@@ -160,7 +163,7 @@ export function AuthScreen() {
         <form.Field name="password">
           {(field) => (
             <AuthTextField
-              label="Password"
+              label={t('auth.passwordLabel')}
               testID={TEST_IDS.auth.passwordInput}
               value={field.state.value}
               autoComplete={isRegister ? 'new-password' : 'current-password'}
@@ -177,9 +180,9 @@ export function AuthScreen() {
         <form.Subscribe selector={(state) => [state.canSubmit, state.isSubmitting] as const}>
           {([canSubmit, isSubmitting]) => (
             <AuthSubmitButton
-              accessibilityLabel={isRegister ? 'Create account' : 'Login'}
+              accessibilityLabel={isRegister ? t('auth.submitRegister') : t('auth.submitLogin')}
               disabled={!canSubmit || isSubmitting || auth.isTransitioning}
-              label={isSubmitting ? 'Working...' : isRegister ? 'Create account' : 'Login'}
+              label={isSubmitting ? t('auth.submitWorking') : isRegister ? t('auth.submitRegister') : t('auth.submitLogin')}
               loading={isSubmitting}
               testID={TEST_IDS.auth.submitButton}
               onPress={() => void form.handleSubmit()}

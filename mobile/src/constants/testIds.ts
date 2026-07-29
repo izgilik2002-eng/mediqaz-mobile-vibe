@@ -7,6 +7,7 @@ export const TEST_IDS = {
     nameInput: 'auth.name-input',
     passwordInput: 'auth.password-input',
     registerTab: 'auth.register-tab',
+    screen: 'auth.screen',
     socialAppleButton: 'auth.social-apple-button',
     socialGoogleButton: 'auth.social-google-button',
     submitButton: 'auth.submit-button',
@@ -24,6 +25,9 @@ export const TEST_IDS = {
   },
   profile: {
     screen: 'profile.screen',
+    languageGroup: 'profile.language-group',
+    languageOption: 'profile.language-option',
+    languageSection: 'profile.language-section',
     specialtyError: 'profile.specialty-error',
     specialtyGroup: 'profile.specialty-group',
     specialtyMissing: 'profile.specialty-missing',

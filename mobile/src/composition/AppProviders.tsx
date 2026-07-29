@@ -22,6 +22,7 @@ import {
   markStoredExpoPushTokenForCleanup,
   setPendingExpoPushTokenCleanup,
 } from '@/features/notifications';
+import { LanguageProvider } from '@/i18n/provider';
 import { ProfileProvider } from '@/features/users';
 import { createMobileApis, SessionController } from './api';
 import { authTransportForPlatform } from './auth-transport';
@@ -59,8 +60,9 @@ export function AppProviders({ children }: PropsWithChildren) {
   }), [pushRegistrationCoordinator]);
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <AuthProvider
+    <LanguageProvider>
+      <QueryClientProvider client={queryClient}>
+        <AuthProvider
         api={apis.auth}
         logoutSupport={logoutSupport}
         session={session}
@@ -72,7 +74,8 @@ export function AppProviders({ children }: PropsWithChildren) {
             {children}
           </PushNotificationsProvider>
         </ProfileProvider>
-      </AuthProvider>
-    </QueryClientProvider>
+        </AuthProvider>
+      </QueryClientProvider>
+    </LanguageProvider>
   );
 }

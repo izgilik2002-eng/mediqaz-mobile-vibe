@@ -25,6 +25,7 @@ const testIds = {
   NAME_INPUT_ID: 'auth.name-input',
   PASSWORD_INPUT_ID: 'auth.password-input',
   APPROVAL_SCREEN_ID: 'approval.screen',
+  AUTH_SCREEN_ID: 'auth.screen',
   SUBMIT_BUTTON_ID: 'auth.submit-button',
 }
 

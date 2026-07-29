@@ -1,10 +1,10 @@
 import {
   doctorSpecialtySchema,
-  SPECIALTY_NAMES,
   type DoctorSpecialty,
   type UserDto,
 } from '@mediqaz/contracts';
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { StyleSheet } from 'react-native';
 
 import { SectionCard } from '@/components/dashboard';
@@ -30,19 +30,20 @@ type SpecialtySectionProps = {
  * and not whatever happened to be first in a collapsed list.
  */
 export function SpecialtySection({ isSaving, onSave, user }: SpecialtySectionProps) {
+  const { t } = useTranslation();
   const theme = useUiTheme();
   const [selected, setSelected] = useState<DoctorSpecialty | null>(user.specialty);
   const hasChanged = selected !== null && selected !== user.specialty;
 
   return (
     <SectionCard
-      description="Ассистент составляет медкарту от лица врача этой специальности: от неё зависят формулировки, термины и на что он обращает внимание. Менять можно в любой момент — новая специальность применится к следующим приёмам."
+      description={t('profile.specialtyDescription')}
       testID={TEST_IDS.profile.specialtySection}
-      title="Специальность">
+      title={t('profile.specialtyTitle')}>
       {!user.specialty ? (
         <Alert testID={TEST_IDS.profile.specialtyMissing}>
           <AlertDescription>
-            Пока специальность не выбрана, медкарту сформировать не получится.
+            {t('profile.specialtyMissing')}
           </AlertDescription>
         </Alert>
       ) : null}
@@ -55,21 +56,21 @@ export function SpecialtySection({ isSaving, onSave, user }: SpecialtySectionPro
           const parsed = doctorSpecialtySchema.safeParse(value);
           if (parsed.success) setSelected(parsed.data);
         }}
-        accessibilityLabel="Выберите специальность">
+        accessibilityLabel={t('profile.specialtySelectLabel')}>
         {SPECIALTIES.map((specialty) => (
           <UiPressable
-            accessibilityLabel={SPECIALTY_NAMES[specialty]}
+            accessibilityLabel={t(`specialty.${specialty}`)}
             disabled={isSaving}
             key={specialty}
             style={[styles.option, { gap: theme.spacing.md, paddingVertical: theme.spacing.sm }]}
             testID={`${TEST_IDS.profile.specialtyOption}.${specialty}`}
             onPress={() => setSelected(specialty)}>
             <RadioGroupItem
-              accessibilityLabel={SPECIALTY_NAMES[specialty]}
+              accessibilityLabel={t(`specialty.${specialty}`)}
               disabled={isSaving}
               value={specialty}
             />
-            <Typography variant="body">{SPECIALTY_NAMES[specialty]}</Typography>
+            <Typography variant="body">{t(`specialty.${specialty}`)}</Typography>
           </UiPressable>
         ))}
       </RadioGroup>
@@ -81,7 +82,7 @@ export function SpecialtySection({ isSaving, onSave, user }: SpecialtySectionPro
         onPress={() => {
           if (selected) onSave(selected);
         }}>
-        Сохранить специальность
+        {t('profile.specialtySave')}
       </Button>
     </SectionCard>
   );
