@@ -23,6 +23,10 @@ const plugins = [
     'expo-audio',
     {
       microphonePermission: 'Приложению нужен доступ к микрофону, чтобы записывать приём.',
+      // Registers the native foreground recording service (Android) and
+      // UIBackgroundModes (iOS) the recorder needs to keep running once the
+      // phone locks or the doctor switches apps.
+      enableBackgroundRecording: true,
     },
   ],
 ];
@@ -49,12 +53,6 @@ module.exports = {
       bundleIdentifier: 'com.webappdemo.mobile',
       icon: './assets/expo.icon',
       usesAppleSignIn: true,
-      infoPlist: {
-        // Keeps the mic session alive while the phone locks or the doctor
-        // switches apps mid-consultation. Android's equivalent needs a
-        // foreground service, tracked as separate follow-up work.
-        UIBackgroundModes: ['audio'],
-      },
     },
     android: {
       package: 'com.webappdemo.mobile',
