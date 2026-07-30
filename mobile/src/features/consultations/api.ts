@@ -22,7 +22,7 @@ export class ConsultationsApi {
 
   uploadRecording(
     appointmentId: string,
-    audio: { data: BodyInit; contentType: string },
+    audio: { data: ArrayBuffer | ArrayBufferView<ArrayBuffer>; contentType: string },
   ): Promise<GenerateMedCardResponse> {
     return this.transport.request(
       `/api/consultations/appointments/${appointmentId}/audio`,

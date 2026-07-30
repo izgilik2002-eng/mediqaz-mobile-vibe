@@ -11,8 +11,13 @@ export type ApiRequestOptions = {
   /**
    * Binary upload: bypasses the JSON encoding `body` goes through. Only one of
    * `body`/`rawBody` should be set.
+   *
+   * Raw bytes, deliberately not `BodyInit`: Expo replaces the global `fetch`
+   * with `expo/fetch`, which rewrites the request's Content-Type to `blob.type`
+   * whenever the body is a Blob — silently discarding `contentType` below.
+   * Bytes carry no type of their own, so the header stays the one set here.
    */
-  rawBody?: { data: BodyInit; contentType: string };
+  rawBody?: { data: ArrayBuffer | ArrayBufferView<ArrayBuffer>; contentType: string };
   auth?: boolean;
   retryOnUnauthorized?: boolean;
   signal?: AbortSignal;

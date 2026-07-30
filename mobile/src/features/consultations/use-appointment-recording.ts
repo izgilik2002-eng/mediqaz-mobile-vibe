@@ -5,6 +5,7 @@ import {
   setAudioModeAsync,
   useAudioRecorder,
   useAudioRecorderState,
+  type AudioRecorder,
 } from 'expo-audio';
 
 import { apiErrorMessage } from '@/platform/api';
@@ -50,6 +51,10 @@ export function useAppointmentRecording(api: ConsultationsApi) {
         // separate follow-up task.
         allowsBackgroundRecording: true,
       });
+      // A leftover session — a double press, or a previous attempt that
+      // errored after preparing — leaves the native recorder "prepared";
+      // it refuses to prepare again without an explicit stop first.
+      await stopIfPrepared(recorder);
       await recorder.prepareToRecordAsync();
       recorder.record();
       dispatch({ type: 'start', startedAt: Date.now() });
@@ -68,11 +73,15 @@ export function useAppointmentRecording(api: ConsultationsApi) {
         throw new Error('Recording finished without a file or appointment');
       }
 
+      // Bytes, not a Blob: reading a `file://` URI yields a Blob with an empty
+      // `type` (there is no HTTP response to take a Content-Type from), and
+      // expo/fetch overwrites the upload's Content-Type header with exactly
+      // that — which the server then rejects as an invalid recording type.
       const audioResponse = await fetch(uri);
-      const audioBlob = await audioResponse.blob();
+      const audioBytes = await audioResponse.arrayBuffer();
 
       await api.uploadRecording(appointmentId, {
-        data: audioBlob,
+        data: audioBytes,
         contentType: CONSULTATION_AUDIO_CONTENT_TYPE,
       });
       dispatch({ type: 'upload-succeeded' });
@@ -83,8 +92,12 @@ export function useAppointmentRecording(api: ConsultationsApi) {
 
   const reset = useCallback(() => {
     appointmentIdRef.current = null;
+    // Fire-and-forget: an error can be reached while the recorder is still
+    // prepared (e.g. stopAndSend's own recorder.stop() failing), so the next
+    // "Начать приём" must not inherit that stale session.
+    void stopIfPrepared(recorder);
     dispatch({ type: 'reset' });
-  }, []);
+  }, [recorder]);
 
   return {
     state,
@@ -93,4 +106,24 @@ export function useAppointmentRecording(api: ConsultationsApi) {
     stopAndSend,
     reset,
   };
+}
+
+/**
+ * expo-audio refuses `prepareToRecordAsync()` on a recorder that is already
+ * prepared or recording ("AudioRecorder has already been prepared. Stop or
+ * release the current session before preparing again."). `release()` is not
+ * the right tool here — it permanently detaches the JS handle from its
+ * native object, and this recorder is reused for the lifetime of the screen
+ * (see useAudioRecorder's memoization). `stop()` is the reusable reset.
+ */
+async function stopIfPrepared(recorder: AudioRecorder) {
+  const status = recorder.getStatus();
+  if (!status.canRecord && !status.isRecording) return;
+
+  try {
+    await recorder.stop();
+  } catch {
+    // Best-effort: prepareToRecordAsync will surface a clearer error next if
+    // the native session still refuses to reset.
+  }
 }

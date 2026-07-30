@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useFocusEffect } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 
@@ -26,7 +26,9 @@ export default function AppointmentScreen() {
   // not to state.phase turning 'error' while the screen is already focused —
   // that would wipe the error before the doctor ever sees it.
   const stateRef = useRef(state);
-  stateRef.current = state;
+  useEffect(() => {
+    stateRef.current = state;
+  }, [state]);
 
   useFocusEffect(
     useCallback(() => {
