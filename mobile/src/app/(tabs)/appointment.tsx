@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
+import { useFocusEffect } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 
 import { ScreenShell, SectionCard } from '@/components/dashboard';
@@ -19,6 +20,21 @@ export default function AppointmentScreen() {
   const api = useConsultationsApi();
   const { state, elapsedMs, start, stopAndSend, reset } = useAppointmentRecording(api);
   const [patientName, setPatientName] = useState('');
+
+  // Read through a ref, not `state` directly, so this callback's identity stays
+  // stable: it must only react to a genuine focus event (returning to the tab),
+  // not to state.phase turning 'error' while the screen is already focused —
+  // that would wipe the error before the doctor ever sees it.
+  const stateRef = useRef(state);
+  stateRef.current = state;
+
+  useFocusEffect(
+    useCallback(() => {
+      if (stateRef.current.phase === 'error') {
+        reset();
+      }
+    }, [reset]),
+  );
 
   const isIdleOrError = state.phase === 'idle' || state.phase === 'error';
   const isRecording = state.phase === 'recording';
