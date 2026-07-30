@@ -13,6 +13,7 @@ const summarySelection = {
   id: true,
   status: true,
   specialty: true,
+  patientName: true,
   durationSeconds: true,
   createdAt: true,
   completedAt: true,
@@ -20,10 +21,10 @@ const summarySelection = {
 
 export function createPrismaAppointmentStore(db: DbClient): AppointmentStore {
   return {
-    async start({ doctorId, specialty }) {
+    async start({ doctorId, specialty, patientName }) {
       return toSummary(
         await db.appointment.create({
-          data: { doctorId, specialty },
+          data: { doctorId, specialty, patientName },
           select: summarySelection,
         }),
       )
@@ -120,6 +121,7 @@ type SummaryRow = {
   id: string
   status: AppointmentStatus
   specialty: DoctorSpecialty
+  patientName: string | null
   durationSeconds: number | null
   createdAt: Date
   completedAt: Date | null
@@ -130,6 +132,7 @@ function toSummary(row: SummaryRow): AppointmentSummary {
     id: row.id,
     status: row.status,
     specialty: row.specialty,
+    patientName: row.patientName,
     durationSeconds: row.durationSeconds,
     createdAt: row.createdAt.toISOString(),
     completedAt: row.completedAt?.toISOString() ?? null,

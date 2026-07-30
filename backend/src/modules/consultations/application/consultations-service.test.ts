@@ -6,6 +6,7 @@ import { MED_CARD_EMPTY_SECTION } from '@mediqaz/contracts'
 import type { ConsultationDoctor } from '../domain/doctor'
 import type {
   AppointmentStore,
+  AudioTranscriber,
   CompletionClient,
   CompletionMessage,
   TranscriptionGrantIssuer,
@@ -33,6 +34,7 @@ const summary: AppointmentSummary = {
   id: 'appointment-1',
   status: 'recording',
   specialty: 'therapist',
+  patientName: null,
   durationSeconds: null,
   createdAt: '2026-07-27T10:00:00.000Z',
   completedAt: null,
@@ -101,15 +103,21 @@ const workingGrants: TranscriptionGrantIssuer = {
   issue: async ({ ttlSeconds }) => ({ accessToken: 'grant-token', expiresIn: ttlSeconds }),
 }
 
+const workingAudioTranscriber: AudioTranscriber = {
+  transcribe: async () => ({ transcript: 'доктор: на что жалуетесь', durationSeconds: 180 }),
+}
+
 function createService(overrides: {
   store?: AppointmentStore
   completions?: CompletionClient
   transcriptionGrants?: TranscriptionGrantIssuer
+  audioTranscriber?: AudioTranscriber
 } = {}) {
   return createConsultationsService({
     appointments: overrides.store ?? createStore().store,
     completions: overrides.completions ?? completionsReturning(medCardJson),
     transcriptionGrants: overrides.transcriptionGrants ?? workingGrants,
+    audioTranscriber: overrides.audioTranscriber ?? workingAudioTranscriber,
     clock: { now: () => new Date('2026-07-27T10:05:00.000Z') },
   })
 }
@@ -166,6 +174,16 @@ test('opens a consultation with the doctor profile specialty', async () => {
 
   await expect(service.startAppointment(approvedDoctor)).resolves.toEqual(summary)
   expect(calls.started).toEqual([{ doctorId: 'doctor-1', specialty: 'therapist' }])
+})
+
+test('passes the patient name through to the store when the doctor provides one', async () => {
+  const { store, calls } = createStore()
+  const service = createService({ store })
+
+  await service.startAppointment(approvedDoctor, { patientName: 'Иванов И.И.' })
+  expect(calls.started).toEqual([
+    { doctorId: 'doctor-1', specialty: 'therapist', patientName: 'Иванов И.И.' },
+  ])
 })
 
 test('stores the transcript and duration before the model runs', async () => {
@@ -231,6 +249,84 @@ test('marks the consultation failed when the model response is unreadable', asyn
   expect(calls.failed).toEqual([
     { appointmentId: 'appointment-1', reason: 'med_card_unreadable' },
   ])
+})
+
+test('transcribes a recording server-side and generates the med card from it', async () => {
+  const { store, calls } = createStore()
+  const service = createService({ store })
+
+  const result = await service.transcribeAndGenerateMedCard({
+    doctor: approvedDoctor,
+    appointmentId: 'appointment-1',
+    audio: new Uint8Array([1, 2, 3]),
+    contentType: 'audio/mp4',
+  })
+
+  // Duration comes from what Deepgram measured in the audio, not a
+  // client-reported number, so the transcript and duration in `markGenerating`
+  // are exactly what the transcriber returned.
+  expect(calls.generating).toEqual([
+    {
+      appointmentId: 'appointment-1',
+      doctorId: 'doctor-1',
+      transcript: 'доктор: на что жалуетесь',
+      durationSeconds: 180,
+    },
+  ])
+  expect(result.medCard.диагноз.мкб10).toBe('J02.9')
+  expect(result.appointment.status).toBe('completed')
+})
+
+test('marks the consultation failed when the recording cannot be transcribed', async () => {
+  const { store, calls } = createStore()
+  const service = createService({
+    store,
+    audioTranscriber: {
+      transcribe: async () => {
+        throw new Error('deepgram 400')
+      },
+    },
+  })
+
+  await expect(
+    service.transcribeAndGenerateMedCard({
+      doctor: approvedDoctor,
+      appointmentId: 'appointment-1',
+      audio: new Uint8Array([1, 2, 3]),
+      contentType: 'audio/mp4',
+    }),
+  ).rejects.toMatchObject({ code: 'audio_transcription_failed' })
+
+  expect(calls.failed).toEqual([
+    { appointmentId: 'appointment-1', reason: 'audio_transcription_failed' },
+  ])
+  expect(calls.generating).toHaveLength(0)
+})
+
+test('checks ownership and specialty before spending a transcription call', async () => {
+  const { store, calls } = createStore({ status: 'completed' })
+  let transcribeCalls = 0
+  const service = createService({
+    store,
+    audioTranscriber: {
+      transcribe: async () => {
+        transcribeCalls += 1
+        return { transcript: 'приём', durationSeconds: 10 }
+      },
+    },
+  })
+
+  await expect(
+    service.transcribeAndGenerateMedCard({
+      doctor: approvedDoctor,
+      appointmentId: 'appointment-1',
+      audio: new Uint8Array([1, 2, 3]),
+      contentType: 'audio/mp4',
+    }),
+  ).rejects.toMatchObject({ code: 'appointment_already_finished' })
+
+  expect(transcribeCalls).toBe(0)
+  expect(calls.failed).toHaveLength(0)
 })
 
 test('refuses to regenerate a finished consultation', async () => {

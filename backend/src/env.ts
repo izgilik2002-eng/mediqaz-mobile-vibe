@@ -115,6 +115,15 @@ const envSchema = z.object({
     .positive()
     .max(4 * 1024 * 1024)
     .default(512 * 1024),
+  // Separate from the JSON body limit above: a recorded consultation is raw
+  // audio, not text. Mono AAC at 64kbps is roughly 0.5MB per minute, so the
+  // default covers a long visit with headroom.
+  CONSULTATION_AUDIO_BODY_LIMIT_BYTES: z.coerce
+    .number()
+    .int()
+    .positive()
+    .max(100 * 1024 * 1024)
+    .default(25 * 1024 * 1024),
   CONSULTATION_RATE_LIMIT_MAX: z.coerce.number().int().positive().default(30),
   CONSULTATION_RATE_LIMIT_WINDOW_SECONDS: z.coerce.number().int().positive().default(60),
 }).superRefine((env, ctx) => {

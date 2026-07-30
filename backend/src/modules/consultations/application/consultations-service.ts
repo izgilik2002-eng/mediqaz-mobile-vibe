@@ -1,4 +1,4 @@
-import type { Appointment, AppointmentSummary, MedCard } from '@mediqaz/contracts'
+import type { Appointment, AppointmentSummary, DoctorSpecialty, MedCard } from '@mediqaz/contracts'
 
 import { assertMayGenerate, assertMayReportProgress } from '../domain/appointment'
 import { assertMayRecord, requireSpecialty, type ConsultationDoctor } from '../domain/doctor'
@@ -12,9 +12,11 @@ import {
 import type {
   AppointmentStore,
   AskQuestionInput,
+  AudioTranscriber,
   CompletionClient,
   ConsultationsService,
   GenerateMedCardInput,
+  TranscribeAndGenerateMedCardInput,
   TranscriptionGrant,
   TranscriptionGrantIssuer,
 } from './ports'
@@ -23,6 +25,7 @@ export type ConsultationsServiceDependencies = {
   appointments: AppointmentStore
   completions: CompletionClient
   transcriptionGrants: TranscriptionGrantIssuer
+  audioTranscriber?: AudioTranscriber
   clock?: { now(): Date }
   /** Long enough to open the stream; the socket outlives the credential. */
   transcriptionGrantTtlSeconds?: number
@@ -32,6 +35,7 @@ export function createConsultationsService({
   appointments,
   completions,
   transcriptionGrants,
+  audioTranscriber,
   clock = { now: () => new Date() },
   transcriptionGrantTtlSeconds = 300,
 }: ConsultationsServiceDependencies): ConsultationsService {
@@ -44,6 +48,78 @@ export function createConsultationsService({
       throw new ConsultationFailure('appointment_not_found', 'Consultation not found')
     }
     return status
+  }
+
+  /**
+   * Shared by the text-transcript and audio-upload entry points: both already
+   * know the specialty and have confirmed the consultation is still open, so
+   * this only runs the model, parses its answer, and persists the result.
+   */
+  async function runGeneration(
+    input: Pick<
+      GenerateMedCardInput,
+      'appointmentId' | 'doctor' | 'transcript' | 'durationSeconds' | 'customInstructions' | 'voiceCommands'
+    >,
+    specialty: DoctorSpecialty,
+  ) {
+    // The transcript is stored before the model runs, so a failed generation
+    // leaves a visible failed consultation with its transcript intact rather
+    // than losing the appointment entirely.
+    await appointments.markGenerating({
+      appointmentId: input.appointmentId,
+      doctorId: input.doctor.id,
+      transcript: input.transcript,
+      durationSeconds: input.durationSeconds,
+    })
+
+    let completion: string
+    try {
+      completion = await completions.complete({
+        messages: [
+          {
+            role: 'system',
+            content: buildMedCardSystemPrompt({
+              specialty,
+              customInstructions: input.customInstructions,
+              voiceCommands: input.voiceCommands,
+            }),
+          },
+          { role: 'user', content: buildMedCardUserPrompt(input.transcript) },
+        ],
+        jsonObject: true,
+      })
+    } catch {
+      await appointments.markFailed({
+        appointmentId: input.appointmentId,
+        reason: 'model_unavailable',
+      })
+      throw new ConsultationFailure('model_unavailable', 'The model is currently unavailable')
+    }
+
+    let medCard: MedCard
+    try {
+      medCard = parseMedCard(completion)
+    } catch (error) {
+      if (error instanceof MedCardParseError) {
+        await appointments.markFailed({
+          appointmentId: input.appointmentId,
+          reason: 'med_card_unreadable',
+        })
+        throw new ConsultationFailure(
+          'med_card_unreadable',
+          'The model response could not be read as a med card',
+        )
+      }
+      throw error
+    }
+
+    const appointment = await appointments.markCompleted({
+      appointmentId: input.appointmentId,
+      medCard,
+      completedAt: clock.now(),
+    })
+
+    return { medCard, appointment }
   }
 
   return {
@@ -60,9 +136,9 @@ export function createConsultationsService({
       }
     },
 
-    async startAppointment(doctor: ConsultationDoctor): Promise<AppointmentSummary> {
+    async startAppointment(doctor, input): Promise<AppointmentSummary> {
       const specialty = requireSpecialty(doctor)
-      return appointments.start({ doctorId: doctor.id, specialty })
+      return appointments.start({ doctorId: doctor.id, specialty, patientName: input?.patientName })
     },
 
     async reportProgress({ doctor, appointmentId, status }) {
@@ -76,64 +152,46 @@ export function createConsultationsService({
       const specialty = requireSpecialty(input.doctor)
       assertMayGenerate(await requireOwnedStatus(input.doctor.id, input.appointmentId))
 
-      // The transcript is stored before the model runs, so a failed generation
-      // leaves a visible failed consultation with its transcript intact rather
-      // than losing the appointment entirely.
-      await appointments.markGenerating({
-        appointmentId: input.appointmentId,
-        doctorId: input.doctor.id,
-        transcript: input.transcript,
-        durationSeconds: input.durationSeconds,
-      })
+      return runGeneration(input, specialty)
+    },
 
-      let completion: string
+    async transcribeAndGenerateMedCard(input: TranscribeAndGenerateMedCardInput) {
+      const specialty = requireSpecialty(input.doctor)
+      assertMayGenerate(await requireOwnedStatus(input.doctor.id, input.appointmentId))
+
+      if (!audioTranscriber) {
+        throw new ConsultationFailure(
+          'audio_transcription_failed',
+          'Audio transcription is not configured',
+        )
+      }
+
+      let transcription
       try {
-        completion = await completions.complete({
-          messages: [
-            {
-              role: 'system',
-              content: buildMedCardSystemPrompt({
-                specialty,
-                customInstructions: input.customInstructions,
-                voiceCommands: input.voiceCommands,
-              }),
-            },
-            { role: 'user', content: buildMedCardUserPrompt(input.transcript) },
-          ],
-          jsonObject: true,
+        transcription = await audioTranscriber.transcribe({
+          audio: input.audio,
+          contentType: input.contentType,
         })
       } catch {
         await appointments.markFailed({
           appointmentId: input.appointmentId,
-          reason: 'model_unavailable',
+          reason: 'audio_transcription_failed',
         })
-        throw new ConsultationFailure('model_unavailable', 'The model is currently unavailable')
+        throw new ConsultationFailure(
+          'audio_transcription_failed',
+          'Could not transcribe the recording',
+        )
       }
 
-      let medCard: MedCard
-      try {
-        medCard = parseMedCard(completion)
-      } catch (error) {
-        if (error instanceof MedCardParseError) {
-          await appointments.markFailed({
-            appointmentId: input.appointmentId,
-            reason: 'med_card_unreadable',
-          })
-          throw new ConsultationFailure(
-            'med_card_unreadable',
-            'The model response could not be read as a med card',
-          )
-        }
-        throw error
-      }
-
-      const appointment = await appointments.markCompleted({
-        appointmentId: input.appointmentId,
-        medCard,
-        completedAt: clock.now(),
-      })
-
-      return { medCard, appointment }
+      return runGeneration(
+        {
+          doctor: input.doctor,
+          appointmentId: input.appointmentId,
+          transcript: transcription.transcript,
+          durationSeconds: transcription.durationSeconds,
+        },
+        specialty,
+      )
     },
 
     async askQuestion(input: AskQuestionInput): Promise<string> {

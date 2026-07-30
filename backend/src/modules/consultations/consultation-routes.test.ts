@@ -7,6 +7,7 @@ import type { DbClient } from '../../db'
 import type { AppEnv } from '../../env'
 import type {
   AppointmentStore,
+  AudioTranscriber,
   CompletionClient,
   TranscriptionGrantIssuer,
 } from './application/ports'
@@ -37,6 +38,7 @@ const env: AppEnv = {
   TRANSCRIPTION_GRANT_TTL_SECONDS: 300,
   GROQ_MAX_CONCURRENT: 1,
   CONSULTATION_BODY_LIMIT_BYTES: 512 * 1024,
+  CONSULTATION_AUDIO_BODY_LIMIT_BYTES: 25 * 1024 * 1024,
   CONSULTATION_RATE_LIMIT_MAX: 60,
   CONSULTATION_RATE_LIMIT_WINDOW_SECONDS: 60,
 } as AppEnv
@@ -56,6 +58,7 @@ const summary = {
   id: '019c0000-0000-7000-8000-000000000001',
   status: 'recording' as const,
   specialty: 'therapist' as const,
+  patientName: null,
   durationSeconds: null,
   createdAt: '2026-07-27T10:00:00.000Z',
   completedAt: null,
@@ -72,8 +75,13 @@ const appointmentStore: AppointmentStore = {
   findForDoctor: async () => ({ ...summary, transcript: null, medCard: null }),
 }
 
+const workingAudioTranscriber: AudioTranscriber = {
+  transcribe: async () => ({ transcript: 'приём', durationSeconds: 120 }),
+}
+
 function createTestApp(overrides: {
   appointments?: AppointmentStore
+  audioTranscriber?: AudioTranscriber
   completions?: CompletionClient
   transcriptionGrants?: TranscriptionGrantIssuer
   env?: Partial<AppEnv>
@@ -82,6 +90,7 @@ function createTestApp(overrides: {
     env: { ...env, ...overrides.env },
     prisma: {} as DbClient,
     appointments: overrides.appointments ?? appointmentStore,
+    audioTranscriber: overrides.audioTranscriber ?? workingAudioTranscriber,
     completions: overrides.completions ?? { complete: async () => medCardJson },
     transcriptionGrants:
       overrides.transcriptionGrants ??
@@ -90,6 +99,7 @@ function createTestApp(overrides: {
 }
 
 const medCardPath = `/api/consultations/appointments/${summary.id}/med-card`
+const audioPath = `/api/consultations/appointments/${summary.id}/audio`
 
 const jsonHeaders = { 'Content-Type': 'application/json' }
 
@@ -181,6 +191,52 @@ describe('consultation routes', () => {
     const second = await request()
 
     expect(second.status).toBe(429)
+  })
+
+  test('rejects an unauthenticated audio upload before reaching the transcriber', async () => {
+    let calls = 0
+    const app = createTestApp({
+      audioTranscriber: {
+        transcribe: async () => {
+          calls += 1
+          return { transcript: 'приём', durationSeconds: 10 }
+        },
+      },
+    })
+
+    const response = await app.request(audioPath, {
+      method: 'POST',
+      headers: { 'Content-Type': 'audio/mp4' },
+      body: new Uint8Array([1, 2, 3]),
+    })
+
+    expect(response.status).toBe(401)
+    expect(calls).toBe(0)
+  })
+
+  test('gives audio uploads their own body limit, larger than the JSON consultation routes', async () => {
+    // Smaller than the upload below, so a shared limit would reject it here too.
+    const app = createTestApp({ env: { CONSULTATION_BODY_LIMIT_BYTES: 64 } })
+
+    const response = await app.request(audioPath, {
+      method: 'POST',
+      headers: { 'Content-Type': 'audio/mp4' },
+      body: new Uint8Array(4_000),
+    })
+
+    expect(response.status).not.toBe(413)
+  })
+
+  test('still bounds audio uploads at their own configured limit', async () => {
+    const app = createTestApp({ env: { CONSULTATION_AUDIO_BODY_LIMIT_BYTES: 64 } })
+
+    const response = await app.request(audioPath, {
+      method: 'POST',
+      headers: { 'Content-Type': 'audio/mp4' },
+      body: new Uint8Array(4_000),
+    })
+
+    expect(response.status).toBe(413)
   })
 
   test('exposes the transcription parameters the client must open the stream with', async () => {

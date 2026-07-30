@@ -12,6 +12,7 @@ import {
   markPendingLogout,
   setStoredRefreshToken,
 } from '@/features/auth';
+import { ConsultationsProvider } from '@/features/consultations';
 import {
   PushNotificationsProvider,
   PushRegistrationCoordinator,
@@ -68,11 +69,13 @@ export function AppProviders({ children }: PropsWithChildren) {
         session={session}
       >
         <ProfileProvider api={apis.users}>
-          <PushNotificationsProvider
-            api={apis.notifications}
-            registrationCoordinator={pushRegistrationCoordinator}>
-            {children}
-          </PushNotificationsProvider>
+          <ConsultationsProvider api={apis.consultations}>
+            <PushNotificationsProvider
+              api={apis.notifications}
+              registrationCoordinator={pushRegistrationCoordinator}>
+              {children}
+            </PushNotificationsProvider>
+          </ConsultationsProvider>
         </ProfileProvider>
         </AuthProvider>
       </QueryClientProvider>

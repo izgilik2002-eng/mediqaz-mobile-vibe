@@ -8,6 +8,7 @@ import {
   appointmentStatusSchema,
   generateMedCardRequestSchema,
   generateMedCardResponseSchema,
+  startAppointmentRequestSchema,
   startAppointmentResponseSchema,
   transcriptionTokenResponseSchema,
   TRANSCRIPTION_PARAMS,
@@ -64,6 +65,11 @@ const transcriptionTokenRoute = createRoute({
 const startAppointmentRoute = createRoute({
   method: 'post',
   path: '/appointments',
+  request: {
+    body: {
+      content: { 'application/json': { schema: startAppointmentRequestSchema } },
+    },
+  },
   responses: {
     201: {
       content: { 'application/json': { schema: startAppointmentResponseSchema } },
@@ -72,6 +78,27 @@ const startAppointmentRoute = createRoute({
     401: unauthorizedResponse,
     403: forbiddenResponse,
     409: { content: errorResponseContent, description: 'The doctor has no specialty set' },
+  },
+})
+
+const audioRoute = createRoute({
+  method: 'post',
+  path: '/appointments/{appointmentId}/audio',
+  request: { params: appointmentParamsSchema },
+  responses: {
+    200: {
+      content: { 'application/json': { schema: generateMedCardResponseSchema } },
+      description: 'Recording transcribed and med card generated',
+    },
+    400: { content: errorResponseContent, description: 'Empty recording or invalid content type' },
+    401: unauthorizedResponse,
+    403: forbiddenResponse,
+    404: { content: errorResponseContent, description: 'Consultation not found' },
+    409: {
+      content: errorResponseContent,
+      description: 'No specialty set, or the consultation is already finished',
+    },
+    502: upstreamResponse,
   },
 })
 
@@ -212,9 +239,37 @@ export function createConsultationRoutes(input: {
 
   routes.openapi(startAppointmentRoute, async (c) => {
     const doctor = await doctorFrom(c)
-    const appointment = await run(() => input.service.startAppointment(doctor))
+    const appointment = await run(() =>
+      input.service.startAppointment(doctor, c.req.valid('json')),
+    )
 
     return c.json({ appointment }, 201)
+  })
+
+  routes.openapi(audioRoute, async (c) => {
+    const doctor = await doctorFrom(c)
+    const { appointmentId } = c.req.valid('param')
+
+    const contentType = c.req.header('content-type')?.trim().toLowerCase()
+    if (!contentType?.startsWith('audio/')) {
+      throw new AppError(400, 'VALIDATION_ERROR', 'Recording content type is invalid')
+    }
+
+    const buffer = await c.req.arrayBuffer()
+    if (buffer.byteLength === 0) {
+      throw new AppError(400, 'VALIDATION_ERROR', 'Recording is empty')
+    }
+
+    const result = await run(() =>
+      input.service.transcribeAndGenerateMedCard({
+        doctor,
+        appointmentId,
+        audio: new Uint8Array(buffer),
+        contentType,
+      }),
+    )
+
+    return c.json(result, 200)
   })
 
   routes.openapi(reportProgressRoute, async (c) => {
@@ -316,6 +371,12 @@ function toAppError(failure: ConsultationFailure) {
         502,
         'CONSULTATION_TRANSCRIPTION_UNAVAILABLE',
         'Не удалось начать запись приёма. Попробуйте ещё раз.',
+      )
+    case 'audio_transcription_failed':
+      return new AppError(
+        502,
+        'CONSULTATION_AUDIO_UNREADABLE',
+        'Не удалось распознать запись. Попробуйте отправить приём ещё раз.',
       )
     case 'med_card_unreadable':
       return new AppError(

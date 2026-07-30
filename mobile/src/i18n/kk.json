@@ -55,8 +55,17 @@
   "appointment": {
     "eyebrow": "MediQaz",
     "title": "Приём",
-    "placeholderTitle": "Скоро здесь появится запись приёма",
-    "placeholderDescription": "Вы сможете записать приём, а ассистент составит медкарту."
+    "description": "Запишите приём — ассистент составит медкарту после отправки.",
+    "patientNameLabel": "Пациент",
+    "patientNamePlaceholder": "Фамилия И.О. (необязательно)",
+    "startButton": "Начать приём",
+    "stopButton": "Остановить и отправить",
+    "newButton": "Новый приём",
+    "statusRecording": "Запись идёт",
+    "statusUploading": "Отправляется...",
+    "statusDone": "Медкарта готова",
+    "errorTitle": "Не удалось записать приём",
+    "microphoneDenied": "Нет доступа к микрофону. Разрешите доступ в настройках телефона."
   },
   "profile": {
     "eyebrow": "Аккаунт",
@@ -115,6 +124,7 @@
     "APPOINTMENT_ALREADY_FINISHED": "Этот приём уже завершён.",
     "APPOINTMENT_STATUS_NOT_ASSIGNABLE": "Этот статус проставляет только сервер.",
     "CONSULTATION_TRANSCRIPTION_UNAVAILABLE": "Не удалось начать запись приёма. Попробуйте ещё раз.",
+    "CONSULTATION_AUDIO_UNREADABLE": "Не удалось распознать запись. Попробуйте отправить приём ещё раз.",
     "CONSULTATION_MED_CARD_UNREADABLE": "Не удалось разобрать медкарту. Попробуйте сформировать её ещё раз.",
     "CONSULTATION_PROVIDER_UNAVAILABLE": "Сервис временно недоступен. Попробуйте ещё раз.",
     "USERS_ADMIN_REQUIRED": "Действие доступно только администратору.",

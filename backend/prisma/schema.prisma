@@ -65,6 +65,7 @@ model Appointment {
   doctorId        String            @map("doctor_id") @db.Uuid
   status          AppointmentStatus @default(recording)
   specialty       DoctorSpecialty
+  patientName     String?           @map("patient_name")
   transcript      String?           @db.Text
   medCard         Json?             @map("med_card")
   durationSeconds Int?              @map("duration_seconds")

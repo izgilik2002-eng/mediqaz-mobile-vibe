@@ -12,6 +12,7 @@ import { createAuthModule, type AuthHttpEnv } from './modules/auth'
 import {
   createConsultationsModule,
   type AppointmentStore,
+  type AudioTranscriber,
   type CompletionClient,
   type TranscriptionGrantIssuer,
 } from './modules/consultations'
@@ -25,12 +26,14 @@ type CreateAppOptions = {
   prisma: DbClient
   /** Overridable so tests exercise routing without reaching real providers. */
   appointments?: AppointmentStore
+  audioTranscriber?: AudioTranscriber
   completions?: CompletionClient
   transcriptionGrants?: TranscriptionGrantIssuer
 }
 
 export function createApp({
   appointments,
+  audioTranscriber,
   backgroundTasks = createBackgroundTasks(),
   completions,
   emailDelivery = disabledEmailDelivery,
@@ -53,6 +56,7 @@ export function createApp({
   })
   const consultations = createConsultationsModule({
     appointments,
+    audioTranscriber,
     completions,
     db: prisma,
     env,
@@ -89,13 +93,29 @@ export function createApp({
     app.use('/api/users/*', middleware)
     app.use('/api/admin/*', middleware)
   }
-  for (const middleware of createIngressSecurity({
+  // A recording upload is raw audio, not JSON, and needs a much larger body
+  // limit than every other consultation route. The two groups are registered
+  // on disjoint paths (not a shared '/api/consultations/*' wildcard) so a
+  // large audio upload is never re-clamped by the smaller JSON limit.
+  const consultationJsonSecurity = {
     ...publicWriteSecurity,
     bodyLimitBytes: env.CONSULTATION_BODY_LIMIT_BYTES,
     rateLimitMax: env.CONSULTATION_RATE_LIMIT_MAX,
     rateLimitWindowSeconds: env.CONSULTATION_RATE_LIMIT_WINDOW_SECONDS,
+  }
+  for (const middleware of createIngressSecurity(consultationJsonSecurity)) {
+    app.use('/api/consultations/transcription-token', middleware)
+    app.use('/api/consultations/appointments', middleware)
+    app.use('/api/consultations/appointments/:appointmentId', middleware)
+    app.use('/api/consultations/appointments/:appointmentId/status', middleware)
+    app.use('/api/consultations/appointments/:appointmentId/med-card', middleware)
+    app.use('/api/consultations/questions', middleware)
+  }
+  for (const middleware of createIngressSecurity({
+    ...consultationJsonSecurity,
+    bodyLimitBytes: env.CONSULTATION_AUDIO_BODY_LIMIT_BYTES,
   })) {
-    app.use('/api/consultations/*', middleware)
+    app.use('/api/consultations/appointments/:appointmentId/audio', middleware)
   }
   app.get('/', (c) => {
     return c.json({

@@ -136,6 +136,7 @@ export const appointmentSchema = z
     id: z.string(),
     status: appointmentStatusSchema,
     specialty: doctorSpecialtySchema,
+    patientName: z.string().nullable(),
     transcript: z.string().nullable(),
     medCard: medCardSchema.nullable(),
     durationSeconds: z.number().int().nonnegative().nullable(),
@@ -148,6 +149,16 @@ export const appointmentSummarySchema = appointmentSchema.omit({
   transcript: true,
   medCard: true,
 })
+
+/**
+ * The doctor types this in before recording; the client omits the field
+ * entirely for a blank input rather than sending an empty string.
+ */
+export const startAppointmentRequestSchema = z
+  .object({
+    patientName: z.string().trim().min(1).max(200).optional(),
+  })
+  .strict()
 
 export const startAppointmentResponseSchema = z
   .object({
@@ -200,6 +211,7 @@ export type WordTimestamp = z.infer<typeof wordTimestampSchema>
 export type TranscriptionTokenResponse = z.infer<typeof transcriptionTokenResponseSchema>
 export type GenerateMedCardRequest = z.infer<typeof generateMedCardRequestSchema>
 export type GenerateMedCardResponse = z.infer<typeof generateMedCardResponseSchema>
+export type StartAppointmentRequest = z.infer<typeof startAppointmentRequestSchema>
 export type StartAppointmentResponse = z.infer<typeof startAppointmentResponseSchema>
 export type AppointmentStatus = z.infer<typeof appointmentStatusSchema>
 export type Appointment = z.infer<typeof appointmentSchema>

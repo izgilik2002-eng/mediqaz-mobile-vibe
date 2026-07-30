@@ -41,12 +41,34 @@ export type CompletionClient = {
   }): Promise<string>
 }
 
+export type AudioTranscription = {
+  transcript: string
+  /** Measured from the audio itself, not reported by the device. */
+  durationSeconds: number
+}
+
+/**
+ * Turns a recorded consultation into text server-side. The device uploads a
+ * finished file rather than streaming, so a dropped connection mid-visit does
+ * not lose the recording.
+ */
+export type AudioTranscriber = {
+  transcribe(input: {
+    audio: Uint8Array<ArrayBuffer>
+    contentType: string
+  }): Promise<AudioTranscription>
+}
+
 /**
  * Persists consultations. Audio is never handed to this port: it is discarded
  * after transcription, so only the transcript and med card are kept.
  */
 export type AppointmentStore = {
-  start(input: { doctorId: string; specialty: DoctorSpecialty }): Promise<AppointmentSummary>
+  start(input: {
+    doctorId: string
+    specialty: DoctorSpecialty
+    patientName?: string
+  }): Promise<AppointmentSummary>
   updateStatus(input: {
     appointmentId: string
     doctorId: string
@@ -81,6 +103,13 @@ export type GenerateMedCardInput = {
   voiceCommands?: string[]
 }
 
+export type TranscribeAndGenerateMedCardInput = {
+  doctor: ConsultationDoctor
+  appointmentId: string
+  audio: Uint8Array<ArrayBuffer>
+  contentType: string
+}
+
 export type AskQuestionInput = {
   doctor: ConsultationDoctor
   transcript: string
@@ -89,7 +118,10 @@ export type AskQuestionInput = {
 
 export type ConsultationsService = {
   issueTranscriptionGrant(doctor: ConsultationDoctor): Promise<TranscriptionGrant>
-  startAppointment(doctor: ConsultationDoctor): Promise<AppointmentSummary>
+  startAppointment(
+    doctor: ConsultationDoctor,
+    input?: { patientName?: string },
+  ): Promise<AppointmentSummary>
   reportProgress(input: {
     doctor: ConsultationDoctor
     appointmentId: string
@@ -97,6 +129,9 @@ export type ConsultationsService = {
   }): Promise<AppointmentSummary>
   generateMedCard(
     input: GenerateMedCardInput,
+  ): Promise<{ medCard: MedCard; appointment: AppointmentSummary }>
+  transcribeAndGenerateMedCard(
+    input: TranscribeAndGenerateMedCardInput,
   ): Promise<{ medCard: MedCard; appointment: AppointmentSummary }>
   askQuestion(input: AskQuestionInput): Promise<string>
   listAppointments(

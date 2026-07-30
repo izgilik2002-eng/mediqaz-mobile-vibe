@@ -4,6 +4,7 @@ export type ConsultationFailureCode =
   | 'appointment_not_found'
   | 'appointment_already_finished'
   | 'transcription_unavailable'
+  | 'audio_transcription_failed'
   | 'model_unavailable'
   | 'med_card_unreadable'
 

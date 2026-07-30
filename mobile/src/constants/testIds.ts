@@ -20,8 +20,14 @@ export const TEST_IDS = {
     status: 'approval.status',
   },
   appointment: {
-    placeholder: 'appointment.placeholder',
     screen: 'appointment.screen',
+    patientNameInput: 'appointment.patient-name-input',
+    startButton: 'appointment.start-button',
+    stopButton: 'appointment.stop-button',
+    newButton: 'appointment.new-button',
+    timer: 'appointment.timer',
+    status: 'appointment.status',
+    error: 'appointment.error',
   },
   profile: {
     screen: 'profile.screen',

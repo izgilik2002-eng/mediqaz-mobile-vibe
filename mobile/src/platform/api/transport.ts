@@ -8,6 +8,11 @@ const defaultApiBaseUrl = (process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:
 export type ApiRequestOptions = {
   method?: 'GET' | 'POST' | 'PATCH';
   body?: unknown;
+  /**
+   * Binary upload: bypasses the JSON encoding `body` goes through. Only one of
+   * `body`/`rawBody` should be set.
+   */
+  rawBody?: { data: BodyInit; contentType: string };
   auth?: boolean;
   retryOnUnauthorized?: boolean;
   signal?: AbortSignal;
@@ -75,7 +80,11 @@ export class ApiTransport {
       credentials: this.credentials,
       headers: this.headers(options),
       signal: options.signal,
-      body: options.body === undefined ? undefined : JSON.stringify(options.body),
+      body: options.rawBody
+        ? options.rawBody.data
+        : options.body === undefined
+          ? undefined
+          : JSON.stringify(options.body),
     });
 
     if (options.auth && !this.session.isGenerationCurrent(generation)) {
@@ -140,7 +149,8 @@ export class ApiTransport {
 
   private headers(options: ApiRequestOptions) {
     const headers = new Headers();
-    if (options.body !== undefined) headers.set('Content-Type', 'application/json');
+    if (options.rawBody) headers.set('Content-Type', options.rawBody.contentType);
+    else if (options.body !== undefined) headers.set('Content-Type', 'application/json');
     if (options.auth) {
       const accessToken = this.session.getAccessToken();
       if (accessToken) headers.set('Authorization', `Bearer ${accessToken}`);

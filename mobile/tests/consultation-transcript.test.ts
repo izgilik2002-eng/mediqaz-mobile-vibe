@@ -4,7 +4,7 @@ import {
   extractVoiceCommand,
   findQuoteTimestamps,
   normalizeText,
-} from '../src/features/consultations';
+} from '../src/features/consultations/transcript';
 
 test('normalizeText strips punctuation and collapses whitespace', () => {
   expect(normalizeText('  Горло,  БОЛИТ!  ')).toBe('горло болит');

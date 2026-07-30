@@ -7,6 +7,7 @@ import {
   medCardSchema,
   MED_CARD_SECTIONS,
   SPECIALTY_NAMES,
+  startAppointmentRequestSchema,
 } from './index'
 
 const medCard = {
@@ -64,6 +65,16 @@ describe('consultation contracts', () => {
     expect(() =>
       generateMedCardRequestSchema.parse({ transcript: '   ' }),
     ).toThrow()
+  })
+
+  test('patient name is optional and trimmed, but cannot be blank if present', () => {
+    expect(startAppointmentRequestSchema.parse({})).toEqual({})
+    expect(startAppointmentRequestSchema.parse({ patientName: '  Иванов И.И.  ' })).toEqual({
+      patientName: 'Иванов И.И.',
+    })
+    expect(() => startAppointmentRequestSchema.parse({ patientName: '' })).toThrow()
+    expect(() => startAppointmentRequestSchema.parse({ patientName: '   ' })).toThrow()
+    expect(() => startAppointmentRequestSchema.parse({ patientName: 'я'.repeat(201) })).toThrow()
   })
 
   test('consultation questions are bounded and required', () => {

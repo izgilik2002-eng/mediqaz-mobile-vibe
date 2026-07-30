@@ -4,10 +4,12 @@ import type { AuthenticatedPrincipal } from '../auth'
 import { createConsultationsService } from './application/consultations-service'
 import type {
   AppointmentStore,
+  AudioTranscriber,
   CompletionClient,
   TranscriptionGrantIssuer,
 } from './application/ports'
 import { createPrismaAppointmentStore } from './infrastructure/appointments-repository'
+import { createDeepgramAudioTranscriber } from './infrastructure/deepgram-transcription'
 import { createDeepgramGrantIssuer } from './infrastructure/deepgram-grants'
 import { createGroqCompletionClient } from './infrastructure/groq-completions'
 import { createConsultationRoutes } from './transport/routes'
@@ -17,12 +19,14 @@ type CreateConsultationsModuleOptions = {
   env: AppEnv
   /** Overridable so tests do not reach the real providers. */
   appointments?: AppointmentStore
+  audioTranscriber?: AudioTranscriber
   completions?: CompletionClient
   transcriptionGrants?: TranscriptionGrantIssuer
 }
 
 export function createConsultationsModule({
   appointments,
+  audioTranscriber,
   db,
   env,
   completions,
@@ -39,6 +43,9 @@ export function createConsultationsModule({
     transcriptionGrants:
       transcriptionGrants ??
       createDeepgramGrantIssuer({ apiKey: requireProviderKey(env, 'DEEPGRAM_API_KEY') }),
+    audioTranscriber:
+      audioTranscriber ??
+      createDeepgramAudioTranscriber({ apiKey: requireProviderKey(env, 'DEEPGRAM_API_KEY') }),
     transcriptionGrantTtlSeconds: env.TRANSCRIPTION_GRANT_TTL_SECONDS,
   })
 
@@ -70,6 +77,7 @@ function requireProviderKey(env: AppEnv, key: 'DEEPGRAM_API_KEY' | 'GROQ_API_KEY
 
 export type {
   AppointmentStore,
+  AudioTranscriber,
   CompletionClient,
   ConsultationsService,
   TranscriptionGrantIssuer,

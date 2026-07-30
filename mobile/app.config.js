@@ -19,6 +19,12 @@ const plugins = [
   'expo-status-bar',
   'expo-apple-authentication',
   'expo-localization',
+  [
+    'expo-audio',
+    {
+      microphonePermission: 'Приложению нужен доступ к микрофону, чтобы записывать приём.',
+    },
+  ],
 ];
 
 if (googleIosUrlScheme) {
@@ -43,6 +49,12 @@ module.exports = {
       bundleIdentifier: 'com.webappdemo.mobile',
       icon: './assets/expo.icon',
       usesAppleSignIn: true,
+      infoPlist: {
+        // Keeps the mic session alive while the phone locks or the doctor
+        // switches apps mid-consultation. Android's equivalent needs a
+        // foreground service, tracked as separate follow-up work.
+        UIBackgroundModes: ['audio'],
+      },
     },
     android: {
       package: 'com.webappdemo.mobile',
