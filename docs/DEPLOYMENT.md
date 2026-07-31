@@ -94,6 +94,18 @@ ADMIN_SEED_PASSWORD=<12-128 characters, not a placeholder>
 
 The seeded administrator is created with `isApproved = false`. That does not block the admin panel, which is gated by role, but it does block that account from recording consultations until it is approved like any other doctor.
 
+**Med-card delivery to the browser extension** — set both together, or leave both unset:
+
+```bash
+SUPABASE_URL=https://<project-ref>.supabase.co
+SUPABASE_SECRET_KEY=<sb_secret_... or service_role key>
+MIS_DELIVERY_TTL_HOURS=24
+```
+
+`SUPABASE_URL` is the bare project origin — no `/rest/v1` suffix. The secret key bypasses row-level security on the Supabase project, which is why it never leaves the backend: the extension ships a publishable key that can read nothing, and is gated by the doctor's delivery code instead. Run `docs/supabase/schema.sql` against the project before the first delivery; it needs the `pg_cron` extension enabled first, under Database → Extensions.
+
+With both variables unset the API still records consultations and generates med cards — only `POST /appointments/{id}/mis-delivery` fails, with `CONSULTATION_MIS_DELIVERY_UNAVAILABLE`.
+
 **Optional, only when the matching feature is enabled:**
 
 ```bash

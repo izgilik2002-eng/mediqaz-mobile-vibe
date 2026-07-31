@@ -8,6 +8,8 @@ import {
   appointmentStatusSchema,
   generateMedCardRequestSchema,
   generateMedCardResponseSchema,
+  misDeliveryCodeResponseSchema,
+  misDeliveryResponseSchema,
   startAppointmentRequestSchema,
   startAppointmentResponseSchema,
   transcriptionTokenResponseSchema,
@@ -206,6 +208,51 @@ const appointmentRoute = createRoute({
   },
 })
 
+const misDeliveryCodeRoute = createRoute({
+  method: 'get',
+  path: '/mis-delivery-code',
+  responses: {
+    200: {
+      content: { 'application/json': { schema: misDeliveryCodeResponseSchema } },
+      description: 'The delivery code for this doctor, issued on first request',
+    },
+    401: unauthorizedResponse,
+    403: forbiddenResponse,
+    502: upstreamResponse,
+  },
+})
+
+const regenerateMisDeliveryCodeRoute = createRoute({
+  method: 'post',
+  path: '/mis-delivery-code/regenerate',
+  responses: {
+    200: {
+      content: { 'application/json': { schema: misDeliveryCodeResponseSchema } },
+      description: 'A fresh delivery code; the previous one stops working',
+    },
+    401: unauthorizedResponse,
+    403: forbiddenResponse,
+    502: upstreamResponse,
+  },
+})
+
+const misDeliveryRoute = createRoute({
+  method: 'post',
+  path: '/appointments/{appointmentId}/mis-delivery',
+  request: { params: appointmentParamsSchema },
+  responses: {
+    200: {
+      content: { 'application/json': { schema: misDeliveryResponseSchema } },
+      description: 'Med card handed to the delivery channel the extension watches',
+    },
+    401: unauthorizedResponse,
+    403: forbiddenResponse,
+    404: { content: errorResponseContent, description: 'Consultation not found' },
+    409: { content: errorResponseContent, description: 'The consultation has no med card yet' },
+    502: upstreamResponse,
+  },
+})
+
 export function createConsultationRoutes(input: {
   authenticateAccessToken: AuthenticateAccessToken
   service: ConsultationsService
@@ -332,6 +379,36 @@ export function createConsultationRoutes(input: {
     return c.json({ appointment }, 200)
   })
 
+  routes.openapi(misDeliveryCodeRoute, async (c) => {
+    const doctor = await doctorFrom(c)
+    const code = await run(() => input.service.misDeliveryCode(doctor))
+
+    return c.json({ code }, 200)
+  })
+
+  routes.openapi(regenerateMisDeliveryCodeRoute, async (c) => {
+    const doctor = await doctorFrom(c)
+    const code = await run(() => input.service.regenerateMisDeliveryCode(doctor))
+
+    return c.json({ code }, 200)
+  })
+
+  routes.openapi(misDeliveryRoute, async (c) => {
+    const doctor = await doctorFrom(c)
+    const { appointmentId } = c.req.valid('param')
+    const delivery = await run(() =>
+      input.service.sendMedCardToMis({ doctor, appointmentId }),
+    )
+
+    return c.json(
+      {
+        deliveredAt: delivery.deliveredAt.toISOString(),
+        expiresAt: delivery.expiresAt.toISOString(),
+      },
+      200,
+    )
+  })
+
   return routes
 }
 
@@ -383,6 +460,18 @@ function toAppError(failure: ConsultationFailure) {
         502,
         'CONSULTATION_MED_CARD_UNREADABLE',
         'Не удалось разобрать медкарту. Попробуйте сформировать её ещё раз.',
+      )
+    case 'med_card_not_ready':
+      return new AppError(
+        409,
+        'CONSULTATION_MED_CARD_NOT_READY',
+        'Медкарта по этому приёму ещё не готова.',
+      )
+    case 'mis_delivery_unavailable':
+      return new AppError(
+        502,
+        'CONSULTATION_MIS_DELIVERY_UNAVAILABLE',
+        'Не удалось отправить медкарту в расширение. Попробуйте ещё раз.',
       )
     default:
       return new AppError(

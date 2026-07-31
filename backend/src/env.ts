@@ -126,6 +126,15 @@ const envSchema = z.object({
     .default(25 * 1024 * 1024),
   CONSULTATION_RATE_LIMIT_MAX: z.coerce.number().int().positive().default(30),
   CONSULTATION_RATE_LIMIT_WINDOW_SECONDS: z.coerce.number().int().positive().default(60),
+  // Delivery channel to the browser extension. The secret key bypasses RLS on
+  // the Supabase project, so it stays server-side; the extension carries its
+  // own publishable key and is gated by the doctor's delivery code instead.
+  SUPABASE_URL: optionalStringSchema,
+  SUPABASE_SECRET_KEY: optionalStringSchema,
+  // A doctor who records in the morning may only open the MIS that afternoon,
+  // so the row outlives the visit. It is a channel, not storage: nothing is
+  // kept past this window.
+  MIS_DELIVERY_TTL_HOURS: z.coerce.number().int().positive().max(24 * 7).default(24),
 }).superRefine((env, ctx) => {
   validateJwtSecret(env, ctx)
   validateProductionRuntime(env, ctx)

@@ -9,6 +9,8 @@ import type {
   AudioTranscriber,
   CompletionClient,
   CompletionMessage,
+  MedCardDeliveryPublisher,
+  MisDeliveryCodeStore,
   TranscriptionGrantIssuer,
 } from './ports'
 import { createConsultationsService } from './consultations-service'
@@ -23,6 +25,8 @@ const medCardJson = JSON.stringify({
   рекомендации: { текст: 'Питьё', цитата: 'пить' },
   следующий_прием: { текст: 'Через 5 дней', цитата: 'через пять' },
 })
+
+const sampleMedCard: MedCard = JSON.parse(medCardJson)
 
 const approvedDoctor: ConsultationDoctor = {
   id: 'doctor-1',
@@ -48,7 +52,14 @@ type StoreCalls = {
   statuses: unknown[]
 }
 
-function createStore(options: { status?: AppointmentStatus | null } = {}) {
+function createStore(
+  options: {
+    status?: AppointmentStatus | null
+    medCard?: MedCard | null
+    patientName?: string | null
+    missing?: boolean
+  } = {},
+) {
   const calls: StoreCalls = {
     started: [],
     generating: [],
@@ -80,14 +91,45 @@ function createStore(options: { status?: AppointmentStatus | null } = {}) {
     },
     statusFor: async () => (options.status === undefined ? 'recording' : options.status),
     listForDoctor: async () => ({ items: [summary], total: 1 }),
-    findForDoctor: async () => ({
-      ...summary,
-      transcript: 'приём',
-      medCard: null,
-    }),
+    findForDoctor: async () =>
+      options.missing
+        ? null
+        : {
+            ...summary,
+            patientName: options.patientName ?? null,
+            transcript: 'приём',
+            medCard: options.medCard === undefined ? null : options.medCard,
+          },
   }
 
   return { store, calls }
+}
+
+function createDeliveryPublisher(options: { fail?: boolean } = {}) {
+  const calls: Array<Parameters<MedCardDeliveryPublisher['publish']>[0]> = []
+  const publisher: MedCardDeliveryPublisher = {
+    publish: async (input) => {
+      calls.push(input)
+      if (options.fail) throw new Error('supabase unreachable')
+    },
+  }
+  return { publisher, calls }
+}
+
+function createCodeStore(options: { code?: string } = {}) {
+  const ensured: string[] = []
+  const regenerated: string[] = []
+  const store: MisDeliveryCodeStore = {
+    ensureFor: async (doctorId) => {
+      ensured.push(doctorId)
+      return options.code ?? 'delivery-code-1'
+    },
+    regenerateFor: async (doctorId) => {
+      regenerated.push(doctorId)
+      return 'delivery-code-2'
+    },
+  }
+  return { store, ensured, regenerated }
 }
 
 function completionsReturning(content: string, capture?: { calls: unknown[] }): CompletionClient {
@@ -112,12 +154,22 @@ function createService(overrides: {
   completions?: CompletionClient
   transcriptionGrants?: TranscriptionGrantIssuer
   audioTranscriber?: AudioTranscriber
+  medCardDelivery?: MedCardDeliveryPublisher
+  misDeliveryCodes?: MisDeliveryCodeStore
+  misDeliveryTtlHours?: number
 } = {}) {
   return createConsultationsService({
     appointments: overrides.store ?? createStore().store,
     completions: overrides.completions ?? completionsReturning(medCardJson),
     transcriptionGrants: overrides.transcriptionGrants ?? workingGrants,
     audioTranscriber: overrides.audioTranscriber ?? workingAudioTranscriber,
+    medCardDelivery: overrides.medCardDelivery,
+    // Unlike medCardDelivery, the real module wiring (index.ts) never leaves
+    // this unset — it always creates a Prisma-backed code store. Defaulting it
+    // here keeps that asymmetry faithful instead of every delivery test having
+    // to know it needs one.
+    misDeliveryCodes: overrides.misDeliveryCodes ?? createCodeStore().store,
+    misDeliveryTtlHours: overrides.misDeliveryTtlHours,
     clock: { now: () => new Date('2026-07-27T10:05:00.000Z') },
   })
 }
@@ -146,6 +198,9 @@ test('refuses every consultation capability to an unapproved doctor', async () =
   await expect(service.listAppointments(unapproved)).rejects.toMatchObject({
     code: 'not_approved',
   })
+  await expect(
+    service.sendMedCardToMis({ doctor: unapproved, appointmentId: 'appointment-1' }),
+  ).rejects.toMatchObject({ code: 'not_approved' })
 
   // Nothing reached the providers or the database.
   expect(calls.started).toHaveLength(0)
@@ -478,4 +533,108 @@ test('never serves a med card the stored shape no longer matches', async () => {
   })
 
   expect(appointment.medCard satisfies MedCard | null).toBeNull()
+})
+
+test('hands a finished med card to the delivery channel under the doctor code', async () => {
+  const { store } = createStore({ medCard: sampleMedCard, patientName: 'Иванов И.И.' })
+  const { publisher, calls } = createDeliveryPublisher()
+  const { store: codes, ensured } = createCodeStore({ code: 'doctor-code-1' })
+  const service = createService({ store, medCardDelivery: publisher, misDeliveryCodes: codes })
+
+  const result = await service.sendMedCardToMis({
+    doctor: approvedDoctor,
+    appointmentId: 'appointment-1',
+  })
+
+  // The code is fetched fresh rather than cached on the doctor object, so a
+  // regenerated code takes effect on the very next delivery.
+  expect(ensured).toEqual(['doctor-1'])
+  expect(calls).toEqual([
+    {
+      doctorCode: 'doctor-code-1',
+      appointmentId: 'appointment-1',
+      patientName: 'Иванов И.И.',
+      medCard: sampleMedCard,
+      expiresAt: result.expiresAt,
+    },
+  ])
+  expect(result.deliveredAt).toEqual(new Date('2026-07-27T10:05:00.000Z'))
+  // Default TTL is 24 hours when the module does not override it.
+  expect(result.expiresAt).toEqual(new Date('2026-07-28T10:05:00.000Z'))
+})
+
+test('sends no patient name to the delivery channel when none was recorded', async () => {
+  const { store } = createStore({ medCard: sampleMedCard, patientName: null })
+  const { publisher, calls } = createDeliveryPublisher()
+  const service = createService({ store, medCardDelivery: publisher })
+
+  await service.sendMedCardToMis({ doctor: approvedDoctor, appointmentId: 'appointment-1' })
+
+  expect(calls[0]?.patientName).toBeUndefined()
+})
+
+test('honors a configured delivery TTL instead of the 24-hour default', async () => {
+  const { store } = createStore({ medCard: sampleMedCard })
+  const { publisher, calls } = createDeliveryPublisher()
+  const service = createService({
+    store,
+    medCardDelivery: publisher,
+    misDeliveryTtlHours: 1,
+  })
+
+  await service.sendMedCardToMis({ doctor: approvedDoctor, appointmentId: 'appointment-1' })
+
+  expect(calls[0]?.expiresAt).toEqual(new Date('2026-07-27T11:05:00.000Z'))
+})
+
+test('refuses to deliver a consultation with no med card yet', async () => {
+  const { store } = createStore({ medCard: null })
+  const { publisher, calls } = createDeliveryPublisher()
+  const service = createService({ store, medCardDelivery: publisher })
+
+  await expect(
+    service.sendMedCardToMis({ doctor: approvedDoctor, appointmentId: 'appointment-1' }),
+  ).rejects.toMatchObject({ code: 'med_card_not_ready' })
+
+  expect(calls).toHaveLength(0)
+})
+
+test("treats another doctor's consultation as missing when delivering", async () => {
+  const { store } = createStore({ missing: true })
+  const { publisher } = createDeliveryPublisher()
+  const service = createService({ store, medCardDelivery: publisher })
+
+  await expect(
+    service.sendMedCardToMis({ doctor: approvedDoctor, appointmentId: 'someone-elses' }),
+  ).rejects.toMatchObject({ code: 'appointment_not_found' })
+})
+
+test('reports a delivery channel outage without leaking the underlying cause', async () => {
+  const { store } = createStore({ medCard: sampleMedCard })
+  const { publisher } = createDeliveryPublisher({ fail: true })
+  const service = createService({ store, medCardDelivery: publisher })
+
+  await expect(
+    service.sendMedCardToMis({ doctor: approvedDoctor, appointmentId: 'appointment-1' }),
+  ).rejects.toMatchObject({ code: 'mis_delivery_unavailable' })
+})
+
+test('refuses delivery when no channel is configured, without touching the store', async () => {
+  const { store } = createStore({ medCard: sampleMedCard })
+  const service = createService({ store })
+
+  await expect(
+    service.sendMedCardToMis({ doctor: approvedDoctor, appointmentId: 'appointment-1' }),
+  ).rejects.toMatchObject({ code: 'mis_delivery_unavailable' })
+})
+
+test('a re-send is allowed: delivering the same completed consultation twice both succeed', async () => {
+  const { store } = createStore({ medCard: sampleMedCard })
+  const { publisher, calls } = createDeliveryPublisher()
+  const service = createService({ store, medCardDelivery: publisher })
+
+  await service.sendMedCardToMis({ doctor: approvedDoctor, appointmentId: 'appointment-1' })
+  await service.sendMedCardToMis({ doctor: approvedDoctor, appointmentId: 'appointment-1' })
+
+  expect(calls).toHaveLength(2)
 })

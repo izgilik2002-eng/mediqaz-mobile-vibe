@@ -19,6 +19,9 @@ model User {
   approvedByUserId        String?                  @map("approved_by_user_id") @db.Uuid
   appleSubject            String?                  @unique @map("apple_subject")
   googleSubject           String?                  @unique @map("google_subject")
+  /// Shared secret the doctor pastes into the browser extension so it can claim
+  /// their delivered med cards. Issued once, on first request, and rotatable.
+  misDeliveryCode         String?                  @unique @map("mis_delivery_code")
   createdAt               DateTime                 @default(now()) @map("created_at")
   updatedAt               DateTime                 @updatedAt @map("updated_at")
   sessions                AuthSession[]

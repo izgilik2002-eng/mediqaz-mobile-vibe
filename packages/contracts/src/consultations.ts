@@ -179,6 +179,25 @@ export const appointmentParamsSchema = z
   })
   .strict()
 
+/**
+ * The doctor pastes this into the browser extension once. It is the only thing
+ * separating one doctor's delivered med cards from another's: the extension
+ * ships its Supabase key publicly, so the key cannot be the secret.
+ */
+export const misDeliveryCodeResponseSchema = z
+  .object({
+    code: z.string(),
+  })
+  .strict()
+
+export const misDeliveryResponseSchema = z
+  .object({
+    deliveredAt: z.string().datetime(),
+    /** When the extension stops being able to claim it and the row is swept. */
+    expiresAt: z.string().datetime(),
+  })
+  .strict()
+
 export const appointmentsResponseSchema = z
   .object({
     items: z.array(appointmentSummarySchema),
@@ -220,3 +239,5 @@ export type AppointmentsResponse = z.infer<typeof appointmentsResponseSchema>
 export type AppointmentResponse = z.infer<typeof appointmentResponseSchema>
 export type AskAboutConsultationRequest = z.infer<typeof askAboutConsultationRequestSchema>
 export type AskAboutConsultationResponse = z.infer<typeof askAboutConsultationResponseSchema>
+export type MisDeliveryCodeResponse = z.infer<typeof misDeliveryCodeResponseSchema>
+export type MisDeliveryResponse = z.infer<typeof misDeliveryResponseSchema>

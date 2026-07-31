@@ -1,4 +1,5 @@
 import type { RecordingOptions } from 'expo-audio';
+import type { MedCard } from '@mediqaz/contracts';
 
 /**
  * Mono AAC, speech-appropriate bitrate: a 20-minute visit stays well under the
@@ -50,13 +51,13 @@ export type RecordingSessionState =
   | { phase: 'idle' }
   | { phase: 'recording'; startedAt: number }
   | { phase: 'uploading' }
-  | { phase: 'done' }
+  | { phase: 'done'; medCard: MedCard; appointmentId: string }
   | { phase: 'error'; message: string };
 
 export type RecordingSessionEvent =
   | { type: 'start'; startedAt: number }
   | { type: 'stop' }
-  | { type: 'upload-succeeded' }
+  | { type: 'upload-succeeded'; medCard: MedCard; appointmentId: string }
   | { type: 'failed'; message: string }
   | { type: 'reset' };
 
@@ -78,7 +79,9 @@ export function recordingSessionReducer(
     case 'stop':
       return state.phase === 'recording' ? { phase: 'uploading' } : state;
     case 'upload-succeeded':
-      return state.phase === 'uploading' ? { phase: 'done' } : state;
+      return state.phase === 'uploading'
+        ? { phase: 'done', medCard: event.medCard, appointmentId: event.appointmentId }
+        : state;
     case 'failed':
       return state.phase === 'recording' || state.phase === 'uploading'
         ? { phase: 'error', message: event.message }

@@ -94,6 +94,33 @@ export type AppointmentStore = {
   findForDoctor(input: { appointmentId: string; doctorId: string }): Promise<Appointment | null>
 }
 
+/**
+ * Hands a finished med card to the delivery channel the browser extension
+ * watches. Deliberately not a general "storage" port: the row it writes is
+ * transient, addressed by the doctor's code, and swept once claimed or expired.
+ */
+export type MedCardDeliveryPublisher = {
+  publish(input: {
+    doctorCode: string
+    appointmentId: string
+    patientName?: string
+    medCard: MedCard
+    expiresAt: Date
+  }): Promise<void>
+}
+
+/**
+ * Issues and rotates the code that ties a delivered med card to one doctor.
+ * Separate from AppointmentStore because it writes to the doctor, not to a
+ * consultation.
+ */
+export type MisDeliveryCodeStore = {
+  /** Returns the existing code, generating and persisting one on first call. */
+  ensureFor(doctorId: string): Promise<string>
+  /** Replaces the code, invalidating whatever the doctor pasted before. */
+  regenerateFor(doctorId: string): Promise<string>
+}
+
 export type GenerateMedCardInput = {
   doctor: ConsultationDoctor
   appointmentId: string
@@ -141,4 +168,10 @@ export type ConsultationsService = {
     doctor: ConsultationDoctor
     appointmentId: string
   }): Promise<Appointment>
+  misDeliveryCode(doctor: ConsultationDoctor): Promise<string>
+  regenerateMisDeliveryCode(doctor: ConsultationDoctor): Promise<string>
+  sendMedCardToMis(input: {
+    doctor: ConsultationDoctor
+    appointmentId: string
+  }): Promise<{ deliveredAt: Date; expiresAt: Date }>
 }

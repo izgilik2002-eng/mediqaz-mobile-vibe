@@ -80,11 +80,11 @@ export function useAppointmentRecording(api: ConsultationsApi) {
       const audioResponse = await fetch(uri);
       const audioBytes = await audioResponse.arrayBuffer();
 
-      await api.uploadRecording(appointmentId, {
+      const { medCard } = await api.uploadRecording(appointmentId, {
         data: audioBytes,
         contentType: CONSULTATION_AUDIO_CONTENT_TYPE,
       });
-      dispatch({ type: 'upload-succeeded' });
+      dispatch({ type: 'upload-succeeded', medCard, appointmentId });
     } catch (error) {
       dispatch({ type: 'failed', message: apiErrorMessage(error, t) });
     }

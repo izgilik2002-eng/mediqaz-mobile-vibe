@@ -23,6 +23,7 @@ import {
   markStoredExpoPushTokenForCleanup,
   setPendingExpoPushTokenCleanup,
 } from '@/features/notifications';
+import { Toaster } from '@/components/ui/sonner';
 import { LanguageProvider } from '@/i18n/provider';
 import { ProfileProvider } from '@/features/users';
 import { createMobileApis, SessionController } from './api';
@@ -62,23 +63,25 @@ export function AppProviders({ children }: PropsWithChildren) {
 
   return (
     <LanguageProvider>
-      <QueryClientProvider client={queryClient}>
-        <AuthProvider
-        api={apis.auth}
-        logoutSupport={logoutSupport}
-        session={session}
-      >
-        <ProfileProvider api={apis.users}>
-          <ConsultationsProvider api={apis.consultations}>
-            <PushNotificationsProvider
-              api={apis.notifications}
-              registrationCoordinator={pushRegistrationCoordinator}>
-              {children}
-            </PushNotificationsProvider>
-          </ConsultationsProvider>
-        </ProfileProvider>
-        </AuthProvider>
-      </QueryClientProvider>
+      <Toaster>
+        <QueryClientProvider client={queryClient}>
+          <AuthProvider
+            api={apis.auth}
+            logoutSupport={logoutSupport}
+            session={session}
+          >
+            <ProfileProvider api={apis.users}>
+              <ConsultationsProvider api={apis.consultations}>
+                <PushNotificationsProvider
+                  api={apis.notifications}
+                  registrationCoordinator={pushRegistrationCoordinator}>
+                  {children}
+                </PushNotificationsProvider>
+              </ConsultationsProvider>
+            </ProfileProvider>
+          </AuthProvider>
+        </QueryClientProvider>
+      </Toaster>
     </LanguageProvider>
   );
 }

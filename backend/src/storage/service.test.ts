@@ -126,6 +126,7 @@ describe('storageConfigFromEnv', () => {
         CONSULTATION_AUDIO_BODY_LIMIT_BYTES: 25 * 1024 * 1024,
         CONSULTATION_RATE_LIMIT_MAX: 60,
         CONSULTATION_RATE_LIMIT_WINDOW_SECONDS: 60,
+        MIS_DELIVERY_TTL_HOURS: 24,
       }),
     ).toBeNull()
   })

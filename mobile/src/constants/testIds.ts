@@ -28,6 +28,12 @@ export const TEST_IDS = {
     timer: 'appointment.timer',
     status: 'appointment.status',
     error: 'appointment.error',
+    medCard: {
+      section: 'appointment.medcard-section',
+      sendToMisButton: 'appointment.medcard-send-to-mis-button',
+      deliveryStatus: 'appointment.medcard-delivery-status',
+      deliveryError: 'appointment.medcard-delivery-error',
+    },
   },
   profile: {
     screen: 'profile.screen',
@@ -40,6 +46,10 @@ export const TEST_IDS = {
     specialtyOption: 'profile.specialty-option',
     specialtySaveButton: 'profile.specialty-save-button',
     specialtySection: 'profile.specialty-section',
+    misCodeSection: 'profile.mis-code-section',
+    misCodeValue: 'profile.mis-code-value',
+    misCodeError: 'profile.mis-code-error',
+    misCodeRegenerateButton: 'profile.mis-code-regenerate-button',
   },
   screen: {
     backButton: 'screen.back-button',

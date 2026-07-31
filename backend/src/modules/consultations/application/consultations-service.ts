@@ -16,6 +16,8 @@ import type {
   CompletionClient,
   ConsultationsService,
   GenerateMedCardInput,
+  MedCardDeliveryPublisher,
+  MisDeliveryCodeStore,
   TranscribeAndGenerateMedCardInput,
   TranscriptionGrant,
   TranscriptionGrantIssuer,
@@ -26,9 +28,12 @@ export type ConsultationsServiceDependencies = {
   completions: CompletionClient
   transcriptionGrants: TranscriptionGrantIssuer
   audioTranscriber?: AudioTranscriber
+  medCardDelivery?: MedCardDeliveryPublisher
+  misDeliveryCodes?: MisDeliveryCodeStore
   clock?: { now(): Date }
   /** Long enough to open the stream; the socket outlives the credential. */
   transcriptionGrantTtlSeconds?: number
+  misDeliveryTtlHours?: number
 }
 
 export function createConsultationsService({
@@ -36,8 +41,11 @@ export function createConsultationsService({
   completions,
   transcriptionGrants,
   audioTranscriber,
+  medCardDelivery,
+  misDeliveryCodes,
   clock = { now: () => new Date() },
   transcriptionGrantTtlSeconds = 300,
+  misDeliveryTtlHours = 24,
 }: ConsultationsServiceDependencies): ConsultationsService {
   async function requireOwnedStatus(doctorId: string, appointmentId: string) {
     const status = await appointments.statusFor({ appointmentId, doctorId })
@@ -233,5 +241,71 @@ export function createConsultationsService({
 
       return appointment
     },
+
+    async misDeliveryCode(doctor) {
+      assertMayRecord(doctor)
+      return requireCodeStore().ensureFor(doctor.id)
+    },
+
+    async regenerateMisDeliveryCode(doctor) {
+      assertMayRecord(doctor)
+      return requireCodeStore().regenerateFor(doctor.id)
+    },
+
+    async sendMedCardToMis({ doctor, appointmentId }) {
+      assertMayRecord(doctor)
+
+      if (!medCardDelivery) {
+        throw new ConsultationFailure(
+          'mis_delivery_unavailable',
+          'Med card delivery is not configured',
+        )
+      }
+
+      const appointment = await appointments.findForDoctor({ appointmentId, doctorId: doctor.id })
+      if (!appointment) {
+        throw new ConsultationFailure('appointment_not_found', 'Consultation not found')
+      }
+
+      // Re-sending is the whole point of this endpoint, so a completed
+      // consultation may be delivered any number of times. What it may not be
+      // is delivered before the model has produced anything to deliver.
+      if (!appointment.medCard) {
+        throw new ConsultationFailure(
+          'med_card_not_ready',
+          'This consultation has no med card yet',
+        )
+      }
+
+      const deliveredAt = clock.now()
+      const expiresAt = new Date(deliveredAt.getTime() + misDeliveryTtlHours * 60 * 60 * 1000)
+
+      try {
+        await medCardDelivery.publish({
+          doctorCode: await requireCodeStore().ensureFor(doctor.id),
+          appointmentId,
+          patientName: appointment.patientName ?? undefined,
+          medCard: appointment.medCard,
+          expiresAt,
+        })
+      } catch {
+        throw new ConsultationFailure(
+          'mis_delivery_unavailable',
+          'Could not hand the med card to the delivery channel',
+        )
+      }
+
+      return { deliveredAt, expiresAt }
+    },
+  }
+
+  function requireCodeStore(): MisDeliveryCodeStore {
+    if (!misDeliveryCodes) {
+      throw new ConsultationFailure(
+        'mis_delivery_unavailable',
+        'Med card delivery is not configured',
+      )
+    }
+    return misDeliveryCodes
   }
 }

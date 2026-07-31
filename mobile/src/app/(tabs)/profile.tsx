@@ -8,6 +8,7 @@ import {
   SessionControls,
   useAuth,
 } from '@/features/auth';
+import { MisDeliveryCodeSection } from '@/features/consultations';
 import { LanguageSection, SpecialtySection, useProfile } from '@/features/users';
 import { useDateFormat } from '@/i18n/format';
 
@@ -51,6 +52,8 @@ export default function ProfileScreen() {
         user={auth.user}
         onSave={(specialty) => void profile.saveSpecialty(specialty)}
       />
+
+      <MisDeliveryCodeSection />
 
       <LanguageSection />
 

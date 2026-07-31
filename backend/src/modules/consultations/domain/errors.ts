@@ -7,6 +7,8 @@ export type ConsultationFailureCode =
   | 'audio_transcription_failed'
   | 'model_unavailable'
   | 'med_card_unreadable'
+  | 'med_card_not_ready'
+  | 'mis_delivery_unavailable'
 
 export class ConsultationFailure extends Error {
   constructor(

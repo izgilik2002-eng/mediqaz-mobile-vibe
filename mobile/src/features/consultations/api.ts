@@ -1,8 +1,12 @@
 import {
   generateMedCardResponseSchema,
+  misDeliveryCodeResponseSchema,
+  misDeliveryResponseSchema,
   startAppointmentRequestSchema,
   startAppointmentResponseSchema,
   type GenerateMedCardResponse,
+  type MisDeliveryCodeResponse,
+  type MisDeliveryResponse,
   type StartAppointmentRequest,
   type StartAppointmentResponse,
 } from '@mediqaz/contracts';
@@ -32,6 +36,34 @@ export class ConsultationsApi {
         rawBody: audio,
         auth: true,
       },
+    );
+  }
+
+  /** Issues the code on first call, so the doctor can set the extension up
+   *  before ever recording a consultation. */
+  misDeliveryCode(): Promise<MisDeliveryCodeResponse> {
+    return this.transport.request(
+      '/api/consultations/mis-delivery-code',
+      misDeliveryCodeResponseSchema,
+      { auth: true },
+    );
+  }
+
+  regenerateMisDeliveryCode(): Promise<MisDeliveryCodeResponse> {
+    return this.transport.request(
+      '/api/consultations/mis-delivery-code/regenerate',
+      misDeliveryCodeResponseSchema,
+      { method: 'POST', auth: true },
+    );
+  }
+
+  /** Safe to call repeatedly: the backend replaces the pending delivery rather
+   *  than queueing a second one, so a retry cannot double up on the doctor. */
+  sendMedCardToMis(appointmentId: string): Promise<MisDeliveryResponse> {
+    return this.transport.request(
+      `/api/consultations/appointments/${appointmentId}/mis-delivery`,
+      misDeliveryResponseSchema,
+      { method: 'POST', auth: true },
     );
   }
 }

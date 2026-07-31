@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useFocusEffect } from 'expo-router';
 import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
 
 import { ScreenShell, SectionCard } from '@/components/dashboard';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -11,14 +12,18 @@ import { Typography } from '@/components/ui/typography';
 import { TEST_IDS } from '@/constants/testIds';
 import {
   formatElapsedTime,
+  MedCardView,
   useAppointmentRecording,
   useConsultationsApi,
+  useMisDelivery,
+  type MisDeliveryState,
 } from '@/features/consultations';
 
 export default function AppointmentScreen() {
   const { t } = useTranslation();
   const api = useConsultationsApi();
   const { state, elapsedMs, start, stopAndSend, reset } = useAppointmentRecording(api);
+  const { state: delivery, send: sendToMis, reset: resetDelivery } = useMisDelivery(api);
   const [patientName, setPatientName] = useState('');
 
   // Read through a ref, not `state` directly, so this callback's identity stays
@@ -42,6 +47,12 @@ export default function AppointmentScreen() {
   const isRecording = state.phase === 'recording';
   const isUploading = state.phase === 'uploading';
   const isDone = state.phase === 'done';
+
+  const startNewAppointment = useCallback(() => {
+    setPatientName('');
+    resetDelivery();
+    reset();
+  }, [reset, resetDelivery]);
 
   return (
     <ScreenShell
@@ -118,19 +129,62 @@ export default function AppointmentScreen() {
             {t('appointment.statusUploading')}
           </Button>
         )}
-
-        {isDone && (
-          <Button
-            accessibilityLabel={t('appointment.newButton')}
-            testID={TEST_IDS.appointment.newButton}
-            onPress={() => {
-              setPatientName('');
-              reset();
-            }}>
-            {t('appointment.newButton')}
-          </Button>
-        )}
       </SectionCard>
+
+      {state.phase === 'done' && <MedCardView medCard={state.medCard} />}
+
+      {delivery.phase === 'error' && (
+        <Alert
+          accessibilityLiveRegion="polite"
+          testID={TEST_IDS.appointment.medCard.deliveryError}
+          variant="destructive">
+          <AlertTitle>{t('appointment.misFailedTitle')}</AlertTitle>
+          <AlertDescription>{delivery.message}</AlertDescription>
+        </Alert>
+      )}
+
+      {delivery.phase === 'sent' && (
+        <Typography
+          accessibilityLiveRegion="polite"
+          testID={TEST_IDS.appointment.medCard.deliveryStatus}
+          align="center"
+          muted
+          variant="bodySm">
+          {t('appointment.misSent')}
+        </Typography>
+      )}
+
+      {state.phase === 'done' && (
+        <Button
+          accessibilityLabel={misButtonLabel(delivery.phase, t)}
+          disabled={delivery.phase === 'sending'}
+          loading={delivery.phase === 'sending'}
+          testID={TEST_IDS.appointment.medCard.sendToMisButton}
+          variant="secondary"
+          onPress={() => void sendToMis(state.appointmentId)}>
+          {misButtonLabel(delivery.phase, t)}
+        </Button>
+      )}
+
+      {isDone && (
+        <Button
+          accessibilityLabel={t('appointment.newButton')}
+          testID={TEST_IDS.appointment.newButton}
+          onPress={startNewAppointment}>
+          {t('appointment.newButton')}
+        </Button>
+      )}
     </ScreenShell>
   );
+}
+
+/**
+ * After a success or a failure the button stays live and renames itself: the
+ * doctor may have missed the banner in the browser, or the extension may not
+ * have been open, and re-sending is the fix for both.
+ */
+function misButtonLabel(phase: MisDeliveryState['phase'], t: TFunction) {
+  if (phase === 'sending') return t('appointment.misSending');
+  if (phase === 'idle') return t('appointment.sendToMis');
+  return t('appointment.misSendAgain');
 }
