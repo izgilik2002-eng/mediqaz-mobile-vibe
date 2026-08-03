@@ -133,7 +133,13 @@ CONSULTATION_RATE_LIMIT_MAX=30
 CONSULTATION_RATE_LIMIT_WINDOW_SECONDS=60
 GROQ_MAX_CONCURRENT=1
 TRANSCRIPTION_GRANT_TTL_SECONDS=300
+TRANSCRIPTION_MAX_AUDIO_SECONDS=600
+DEEPGRAM_WHISPER_MODEL=
 ```
+
+`TRANSCRIPTION_MAX_AUDIO_SECONDS` bounds only the languages served by a whole-file provider — Kazakh and auto-detect, which run on Deepgram's Whisper. Russian streams through Nova-2 and has no such cap, so raising this never affects Russian consultations. Deepgram's own docs give both 10 and 20 minutes for Whisper's processing budget, so the default is the conservative one; raise it after measuring on real recordings. Past the limit the API answers `413 CONSULTATION_RECORDING_TOO_LONG` and the app tells the doctor to record a shorter visit — recordings are never split, because half a consultation produces half a med card.
+
+Which model serves which language lives in `backend/src/modules/consultations/infrastructure/transcription-router.ts` and nowhere else. Replacing Deepgram for one language is a new adapter plus a row in that table; no route, service, or client changes.
 
 ## Migrations
 

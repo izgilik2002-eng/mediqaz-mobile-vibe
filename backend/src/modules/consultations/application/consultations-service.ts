@@ -2,7 +2,7 @@ import type { Appointment, AppointmentSummary, DoctorSpecialty, MedCard } from '
 
 import { assertMayGenerate, assertMayReportProgress } from '../domain/appointment'
 import { assertMayRecord, requireSpecialty, type ConsultationDoctor } from '../domain/doctor'
-import { ConsultationFailure } from '../domain/errors'
+import { ConsultationFailure, RecordingTooLongError } from '../domain/errors'
 import { MedCardParseError, parseMedCard } from '../domain/med-card'
 import {
   buildMedCardSystemPrompt,
@@ -21,13 +21,18 @@ import type {
   TranscribeAndGenerateMedCardInput,
   TranscriptionGrant,
   TranscriptionGrantIssuer,
+  TranscriptionRouter,
 } from './ports'
 
 export type ConsultationsServiceDependencies = {
   appointments: AppointmentStore
   completions: CompletionClient
   transcriptionGrants: TranscriptionGrantIssuer
-  audioTranscriber?: AudioTranscriber
+  /**
+   * Resolves the doctor's language to a provider. The service never names a
+   * model: that is the router's whole reason to exist.
+   */
+  transcription?: TranscriptionRouter
   medCardDelivery?: MedCardDeliveryPublisher
   misDeliveryCodes?: MisDeliveryCodeStore
   clock?: { now(): Date }
@@ -40,7 +45,7 @@ export function createConsultationsService({
   appointments,
   completions,
   transcriptionGrants,
-  audioTranscriber,
+  transcription,
   medCardDelivery,
   misDeliveryCodes,
   clock = { now: () => new Date() },
@@ -131,17 +136,37 @@ export function createConsultationsService({
   }
 
   return {
-    async issueTranscriptionGrant(doctor): Promise<TranscriptionGrant> {
+    async issueTranscriptionGrant(doctor) {
       assertMayRecord(doctor)
 
+      if (!transcription) {
+        throw new ConsultationFailure(
+          'transcription_unavailable',
+          'Transcription is not configured',
+        )
+      }
+
+      // Asked before spending a credential: for a language no provider streams,
+      // a token would buy a socket that transcribes nothing. Better to say so.
+      const params = transcription.streamingParamsFor(doctor.transcriptionLanguage)
+      if (!params) {
+        throw new ConsultationFailure(
+          'live_unavailable_for_language',
+          'No provider offers live transcription for this language',
+        )
+      }
+
+      let grant: TranscriptionGrant
       try {
-        return await transcriptionGrants.issue({ ttlSeconds: transcriptionGrantTtlSeconds })
+        grant = await transcriptionGrants.issue({ ttlSeconds: transcriptionGrantTtlSeconds })
       } catch {
         throw new ConsultationFailure(
           'transcription_unavailable',
           'Could not issue a transcription credential',
         )
       }
+
+      return { ...grant, params }
     },
 
     async startAppointment(doctor, input): Promise<AppointmentSummary> {
@@ -167,27 +192,36 @@ export function createConsultationsService({
       const specialty = requireSpecialty(input.doctor)
       assertMayGenerate(await requireOwnedStatus(input.doctor.id, input.appointmentId))
 
-      if (!audioTranscriber) {
+      if (!transcription) {
         throw new ConsultationFailure(
           'audio_transcription_failed',
           'Audio transcription is not configured',
         )
       }
 
-      let transcription
+      // The doctor's language, not a model. Which provider serves it is decided
+      // one layer down, so adding a language never reaches this file.
+      const transcriber = transcription.batchTranscriberFor(input.doctor.transcriptionLanguage)
+
+      let result
       try {
-        transcription = await audioTranscriber.transcribe({
+        result = await transcriber.transcribe({
           audio: input.audio,
           contentType: input.contentType,
         })
-      } catch {
-        await appointments.markFailed({
-          appointmentId: input.appointmentId,
-          reason: 'audio_transcription_failed',
-        })
+      } catch (cause) {
+        // A recording the provider refuses for length fails identically on
+        // every retry, so it gets its own answer rather than "try again".
+        const reason =
+          cause instanceof RecordingTooLongError ? 'recording_too_long' : 'audio_transcription_failed'
+
+        await appointments.markFailed({ appointmentId: input.appointmentId, reason })
+
         throw new ConsultationFailure(
-          'audio_transcription_failed',
-          'Could not transcribe the recording',
+          reason,
+          reason === 'recording_too_long'
+            ? 'The recording is longer than the transcription provider accepts'
+            : 'Could not transcribe the recording',
         )
       }
 
@@ -195,8 +229,8 @@ export function createConsultationsService({
         {
           doctor: input.doctor,
           appointmentId: input.appointmentId,
-          transcript: transcription.transcript,
-          durationSeconds: transcription.durationSeconds,
+          transcript: result.transcript,
+          durationSeconds: result.durationSeconds,
         },
         specialty,
       )

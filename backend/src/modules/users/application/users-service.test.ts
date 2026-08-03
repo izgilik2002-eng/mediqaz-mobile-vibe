@@ -1,6 +1,10 @@
 import { expect, test } from 'bun:test'
 
-import type { AdminUserSummary, DoctorSpecialty } from '@mediqaz/contracts'
+import type {
+  AdminUserSummary,
+  DoctorSpecialty,
+  TranscriptionLanguage,
+} from '@mediqaz/contracts'
 
 import type { AuthenticatedPrincipal } from '../../auth'
 import { UsersService } from './users-service'
@@ -12,6 +16,7 @@ const principal: AuthenticatedPrincipal = {
   role: 'user',
   isApproved: false,
   specialty: null,
+  transcriptionLanguage: 'ru',
   createdAt: '2026-07-20T00:00:00.000Z',
   sessionId: 'session-1',
 }
@@ -29,7 +34,11 @@ const pendingDoctor: AdminUserSummary = {
 
 type ProfileWrite = {
   userId: string
-  input: { displayName: string | null; specialty?: DoctorSpecialty | null }
+  input: {
+    displayName: string | null
+    specialty?: DoctorSpecialty | null
+    transcriptionLanguage?: TranscriptionLanguage
+  }
 }
 
 type ApprovalCall = {
@@ -69,6 +78,7 @@ function createService({
           role: principal.role,
           isApproved: false,
           specialty: writtenSpecialty,
+          transcriptionLanguage: input.transcriptionLanguage ?? 'ru',
           createdAt: new Date(principal.createdAt),
         }
       },
@@ -100,6 +110,7 @@ test('profile updates return the written profile without a post-write read', asy
       role: principal.role,
       isApproved: false,
       specialty: null,
+      transcriptionLanguage: 'ru',
       createdAt: principal.createdAt,
     },
   })

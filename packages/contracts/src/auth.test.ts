@@ -34,6 +34,7 @@ const validUser = {
   role: 'user',
   isApproved: false,
   specialty: null,
+  transcriptionLanguage: 'ru',
   createdAt: '2026-05-11T00:00:00.000Z',
 } as const
 

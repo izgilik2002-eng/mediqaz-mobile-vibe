@@ -3,7 +3,10 @@ import { useFocusEffect } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 
+import { DEFAULT_TRANSCRIPTION_LANGUAGE } from '@mediqaz/contracts';
+
 import { ScreenShell, SectionCard } from '@/components/dashboard';
+import { useAuth } from '@/features/auth';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Field, FieldLabel } from '@/components/ui/field';
@@ -22,7 +25,11 @@ import {
 export default function AppointmentScreen() {
   const { t } = useTranslation();
   const api = useConsultationsApi();
-  const { state, elapsedMs, start, stopAndSend, reset } = useAppointmentRecording(api);
+  const auth = useAuth();
+  const { state, elapsedMs, start, stopAndSend, reset } = useAppointmentRecording(
+    api,
+    auth.user?.transcriptionLanguage ?? DEFAULT_TRANSCRIPTION_LANGUAGE,
+  );
   const { state: delivery, send: sendToMis, reset: resetDelivery } = useMisDelivery(api);
   const [patientName, setPatientName] = useState('');
 

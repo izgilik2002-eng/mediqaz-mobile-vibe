@@ -47,6 +47,7 @@ function createProtectedTestApp() {
       role: 'user',
       isApproved: false,
       specialty: null,
+      transcriptionLanguage: 'ru',
       createdAt: '2026-01-01T00:00:00.000Z',
       sessionId: 'session-1',
     }

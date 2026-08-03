@@ -37,18 +37,33 @@ export const WAKE_WORDS = [
 ] as const
 
 /**
- * Deepgram streaming parameters. Both sides must agree: the backend issues a
- * token for this usage and the client opens the socket with these values.
+ * What the doctor chooses; never a model name. Everything above the transcription
+ * router — this contract, the service, the routes, the app — speaks only this
+ * vocabulary, so swapping Deepgram for another provider stays one layer deep.
+ *
+ * `multi` is language auto-detection, not code-switching: the provider picks the
+ * dominant language of the recording rather than following a doctor who changes
+ * language mid-sentence.
  */
-export const TRANSCRIPTION_PARAMS = {
-  model: 'nova-2',
-  language: 'ru',
-  smart_format: 'true',
-  diarize: 'true',
-  punctuate: 'true',
-  interim_results: 'true',
-  utterance_end_ms: '1000',
-} as const
+export const transcriptionLanguageSchema = z.enum(['ru', 'kk', 'multi'])
+
+/** What every existing doctor already gets, so the column default is a no-op. */
+export const DEFAULT_TRANSCRIPTION_LANGUAGE = 'ru' as const satisfies TranscriptionLanguage
+
+/**
+ * Languages whose provider processes the whole recording in one pass and gives
+ * up past a hard timeout. Russian has no such cap today, so the limit is per
+ * language rather than global — capping Russian would be a regression.
+ *
+ * The backend enforces this; the constant is here so the app can warn before
+ * spending a long upload rather than after.
+ */
+export const TRANSCRIPTION_CAPPED_LANGUAGES = ['kk', 'multi'] as const
+export const TRANSCRIPTION_MAX_AUDIO_SECONDS = 600
+
+export function transcriptionIsCapped(language: TranscriptionLanguage): boolean {
+  return (TRANSCRIPTION_CAPPED_LANGUAGES as readonly string[]).includes(language)
+}
 
 /** Med-card section order. Drives both rendering and prompt construction. */
 export const MED_CARD_SECTIONS = [
@@ -92,6 +107,11 @@ export const wordTimestampSchema = z.object({
   end: z.number(),
 })
 
+/**
+ * `params` stays an opaque string map on purpose: it is whatever the chosen
+ * provider needs on its socket, and the client forwards it without reading it.
+ * Naming the keys here would put the model back into the contract.
+ */
 export const transcriptionTokenResponseSchema = z
   .object({
     accessToken: z.string(),
@@ -223,6 +243,7 @@ export const askAboutConsultationResponseSchema = z
   .strict()
 
 export type DoctorSpecialty = z.infer<typeof doctorSpecialtySchema>
+export type TranscriptionLanguage = z.infer<typeof transcriptionLanguageSchema>
 export type MedCardSectionKey = (typeof MED_CARD_SECTIONS)[number]['key']
 export type VisitType = z.infer<typeof visitTypeSchema>
 export type MedCard = z.infer<typeof medCardSchema>

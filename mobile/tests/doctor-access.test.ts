@@ -10,6 +10,7 @@ const approvedDoctor: UserDto = {
   role: 'user',
   isApproved: true,
   specialty: 'therapist',
+  transcriptionLanguage: 'ru',
   createdAt: '2026-07-27T00:00:00.000Z',
 };
 

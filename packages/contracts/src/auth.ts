@@ -1,6 +1,6 @@
 import { z } from 'zod'
 
-import { doctorSpecialtySchema } from './consultations'
+import { doctorSpecialtySchema, transcriptionLanguageSchema } from './consultations'
 import { expoPushTokenSchema } from './notifications'
 
 const displayNameSchema = z
@@ -25,6 +25,9 @@ export const userSchema = z.object({
   /** Set by an administrator; false until a doctor is cleared to record. */
   isApproved: z.boolean(),
   specialty: doctorSpecialtySchema.nullable(),
+  /** Never null: every doctor transcribes in some language, and the default is
+   *  what they already had before the choice existed. */
+  transcriptionLanguage: transcriptionLanguageSchema,
   createdAt: z.string().datetime(),
 })
 

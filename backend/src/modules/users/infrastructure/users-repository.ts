@@ -30,6 +30,7 @@ const userSummarySelect = {
   role: true,
   isApproved: true,
   specialty: true,
+  transcriptionLanguage: true,
   approvedAt: true,
   createdAt: true,
 } as const
@@ -50,6 +51,9 @@ export function createPrismaUsersRepository(db: DbClient): UsersRepository {
         data: {
           displayName: input.displayName,
           ...(input.specialty === undefined ? {} : { specialty: input.specialty }),
+          ...(input.transcriptionLanguage === undefined
+            ? {}
+            : { transcriptionLanguage: input.transcriptionLanguage }),
         },
         select: userSummarySelect,
       })

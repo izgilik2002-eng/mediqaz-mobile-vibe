@@ -1,15 +1,33 @@
-import { TRANSCRIPTION_PARAMS } from '@mediqaz/contracts'
-
 import type { AudioTranscriber, AudioTranscription, FetchLike } from '../application/ports'
 
 const listenEndpoint = 'https://api.deepgram.com/v1/listen'
 
+/**
+ * Nova-2, Russian — the fast path, and what every MediQaz consultation has used
+ * so far. Deliberately frozen: adding other languages must not be able to
+ * change what Russian-speaking doctors already get.
+ *
+ * Nova-2 has no Kazakh whatsoever — `kk` is absent from its language list — so
+ * a `language=kk` request here would not degrade gracefully, it would return
+ * confident Russian nonsense. Keeping that request from ever being made is the
+ * transcription router's job, not this adapter's.
+ */
+export const NOVA2_STREAM_PARAMS: Readonly<Record<string, string>> = Object.freeze({
+  model: 'nova-2',
+  language: 'ru',
+  smart_format: 'true',
+  diarize: 'true',
+  punctuate: 'true',
+  interim_results: 'true',
+  utterance_end_ms: '1000',
+})
+
 const queryParams = new URLSearchParams({
-  model: TRANSCRIPTION_PARAMS.model,
-  language: TRANSCRIPTION_PARAMS.language,
-  smart_format: TRANSCRIPTION_PARAMS.smart_format,
-  diarize: TRANSCRIPTION_PARAMS.diarize,
-  punctuate: TRANSCRIPTION_PARAMS.punctuate,
+  model: 'nova-2',
+  language: 'ru',
+  smart_format: 'true',
+  diarize: 'true',
+  punctuate: 'true',
 }).toString()
 
 type DeepgramPrerecordedResponse = {
@@ -19,7 +37,7 @@ type DeepgramPrerecordedResponse = {
   }
 }
 
-export function createDeepgramAudioTranscriber({
+export function createDeepgramNova2Transcriber({
   apiKey,
   fetchImpl = fetch,
   // Processing a full recording takes longer than the short grant request;

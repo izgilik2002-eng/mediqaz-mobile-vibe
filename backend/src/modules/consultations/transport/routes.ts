@@ -13,7 +13,6 @@ import {
   startAppointmentRequestSchema,
   startAppointmentResponseSchema,
   transcriptionTokenResponseSchema,
-  TRANSCRIPTION_PARAMS,
 } from '@mediqaz/contracts'
 import { createRoute, OpenAPIHono, z } from '@hono/zod-openapi'
 import type { Context } from 'hono'
@@ -60,6 +59,10 @@ const transcriptionTokenRoute = createRoute({
     },
     401: unauthorizedResponse,
     403: forbiddenResponse,
+    409: {
+      content: errorResponseContent,
+      description: 'No provider streams the doctor\'s transcription language',
+    },
     502: upstreamResponse,
   },
 })
@@ -99,6 +102,10 @@ const audioRoute = createRoute({
     409: {
       content: errorResponseContent,
       description: 'No specialty set, or the consultation is already finished',
+    },
+    413: {
+      content: errorResponseContent,
+      description: 'The recording is longer than the provider accepts',
     },
     502: upstreamResponse,
   },
@@ -278,7 +285,9 @@ export function createConsultationRoutes(input: {
       {
         accessToken: grant.accessToken,
         expiresIn: grant.expiresIn,
-        params: { ...TRANSCRIPTION_PARAMS },
+        // Whatever the provider for this doctor's language needs; the route
+        // forwards it without reading it.
+        params: grant.params,
       },
       200,
     )
@@ -473,6 +482,20 @@ function toAppError(failure: ConsultationFailure) {
         'CONSULTATION_MIS_DELIVERY_UNAVAILABLE',
         'Не удалось отправить медкарту в расширение. Попробуйте ещё раз.',
       )
+    case 'recording_too_long':
+      // 413, not 502: nothing is wrong upstream and retrying the same file
+      // fails the same way. The recording itself is the problem.
+      return new AppError(
+        413,
+        'CONSULTATION_RECORDING_TOO_LONG',
+        'Запись слишком длинная для распознавания. Запишите приём короче.',
+      )
+    case 'live_unavailable_for_language':
+      return new AppError(
+        409,
+        'CONSULTATION_LIVE_UNAVAILABLE_FOR_LANGUAGE',
+        'Живая расшифровка недоступна для выбранного языка.',
+      )
     default:
       return new AppError(
         502,
@@ -491,6 +514,7 @@ async function currentDoctor(
     id: principal.id,
     isApproved: principal.isApproved,
     specialty: principal.specialty,
+    transcriptionLanguage: principal.transcriptionLanguage,
   }
 }
 

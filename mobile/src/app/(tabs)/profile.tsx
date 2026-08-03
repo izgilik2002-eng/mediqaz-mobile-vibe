@@ -9,7 +9,12 @@ import {
   useAuth,
 } from '@/features/auth';
 import { MisDeliveryCodeSection } from '@/features/consultations';
-import { LanguageSection, SpecialtySection, useProfile } from '@/features/users';
+import {
+  LanguageSection,
+  SpecialtySection,
+  TranscriptionLanguageSection,
+  useProfile,
+} from '@/features/users';
 import { useDateFormat } from '@/i18n/format';
 
 export default function ProfileScreen() {
@@ -51,6 +56,12 @@ export default function ProfileScreen() {
         isSaving={profile.isSaving}
         user={auth.user}
         onSave={(specialty) => void profile.saveSpecialty(specialty)}
+      />
+
+      <TranscriptionLanguageSection
+        isSaving={profile.isSaving}
+        user={auth.user}
+        onSave={(language) => void profile.saveTranscriptionLanguage(language)}
       />
 
       <MisDeliveryCodeSection />

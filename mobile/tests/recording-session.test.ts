@@ -1,11 +1,25 @@
 import { expect, test } from 'bun:test';
 
+import type { MedCard } from '@mediqaz/contracts';
+
 import {
   formatElapsedTime,
   normalizedPatientName,
   recordingSessionReducer,
   type RecordingSessionState,
 } from '../src/features/consultations/recording-session';
+
+const section = { текст: 'Не указано в ходе приёма', цитата: '' };
+const medCard: MedCard = {
+  тип_приема: 'Первичный',
+  жалобы: section,
+  анамнез: section,
+  объективно: section,
+  диагноз: { ...section, мкб10: 'J02.9' },
+  назначения: section,
+  рекомендации: section,
+  следующий_прием: section,
+};
 
 test('formats elapsed time as mm:ss, floored to the second', () => {
   expect(formatElapsedTime(0)).toBe('00:00');
@@ -48,19 +62,29 @@ test('stopping only takes effect while recording', () => {
 });
 
 test('a late duplicate event is ignored instead of corrupting the current phase', () => {
-  const done: RecordingSessionState = { phase: 'done' };
+  const done: RecordingSessionState = { phase: 'done', medCard, appointmentId: 'appointment-1' };
   expect(recordingSessionReducer(done, { type: 'start', startedAt: 100 })).toEqual(done);
-  expect(recordingSessionReducer(done, { type: 'upload-succeeded' })).toEqual(done);
+  expect(
+    recordingSessionReducer(done, {
+      type: 'upload-succeeded',
+      medCard,
+      appointmentId: 'appointment-2',
+    }),
+  ).toEqual(done);
 
   const uploading: RecordingSessionState = { phase: 'uploading' };
   expect(recordingSessionReducer(uploading, { type: 'start', startedAt: 100 })).toEqual(uploading);
 });
 
-test('upload success only takes effect while uploading', () => {
+test('upload success carries the med card and appointment into the done phase', () => {
   const uploading: RecordingSessionState = { phase: 'uploading' };
-  expect(recordingSessionReducer(uploading, { type: 'upload-succeeded' })).toEqual({
-    phase: 'done',
-  });
+  expect(
+    recordingSessionReducer(uploading, {
+      type: 'upload-succeeded',
+      medCard,
+      appointmentId: 'appointment-1',
+    }),
+  ).toEqual({ phase: 'done', medCard, appointmentId: 'appointment-1' });
 });
 
 test('a failure surfaces from recording or uploading, carrying its message', () => {
@@ -78,7 +102,7 @@ test('a failure surfaces from recording or uploading, carrying its message', () 
 });
 
 test('reset always returns to idle regardless of the current phase', () => {
-  const done: RecordingSessionState = { phase: 'done' };
+  const done: RecordingSessionState = { phase: 'done', medCard, appointmentId: 'appointment-1' };
   expect(recordingSessionReducer(done, { type: 'reset' })).toEqual({ phase: 'idle' });
 
   const errored: RecordingSessionState = { phase: 'error', message: 'oops' };

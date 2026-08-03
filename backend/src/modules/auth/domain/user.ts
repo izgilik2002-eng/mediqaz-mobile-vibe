@@ -1,4 +1,9 @@
-import type { DoctorSpecialty, UserDto, UserRole } from '@mediqaz/contracts'
+import type {
+  DoctorSpecialty,
+  TranscriptionLanguage,
+  UserDto,
+  UserRole,
+} from '@mediqaz/contracts'
 
 export type AuthUserRecord = {
   id: string
@@ -8,6 +13,7 @@ export type AuthUserRecord = {
   role: UserRole
   isApproved: boolean
   specialty: DoctorSpecialty | null
+  transcriptionLanguage: TranscriptionLanguage
   createdAt: Date
 }
 
@@ -23,6 +29,7 @@ export function toUserDto(user: AuthUserRecord): UserDto {
     role: user.role,
     isApproved: user.isApproved,
     specialty: user.specialty,
+    transcriptionLanguage: user.transcriptionLanguage,
     createdAt: user.createdAt.toISOString(),
   }
 }

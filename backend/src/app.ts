@@ -12,7 +12,7 @@ import { createAuthModule, type AuthHttpEnv } from './modules/auth'
 import {
   createConsultationsModule,
   type AppointmentStore,
-  type AudioTranscriber,
+  type TranscriptionRouter,
   type CompletionClient,
   type TranscriptionGrantIssuer,
 } from './modules/consultations'
@@ -26,14 +26,14 @@ type CreateAppOptions = {
   prisma: DbClient
   /** Overridable so tests exercise routing without reaching real providers. */
   appointments?: AppointmentStore
-  audioTranscriber?: AudioTranscriber
+  transcription?: TranscriptionRouter
   completions?: CompletionClient
   transcriptionGrants?: TranscriptionGrantIssuer
 }
 
 export function createApp({
   appointments,
-  audioTranscriber,
+  transcription,
   backgroundTasks = createBackgroundTasks(),
   completions,
   emailDelivery = disabledEmailDelivery,
@@ -56,7 +56,7 @@ export function createApp({
   })
   const consultations = createConsultationsModule({
     appointments,
-    audioTranscriber,
+    transcription,
     completions,
     db: prisma,
     env,

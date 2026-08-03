@@ -127,6 +127,7 @@ describe('storageConfigFromEnv', () => {
         CONSULTATION_RATE_LIMIT_MAX: 60,
         CONSULTATION_RATE_LIMIT_WINDOW_SECONDS: 60,
         MIS_DELIVERY_TTL_HOURS: 24,
+        TRANSCRIPTION_MAX_AUDIO_SECONDS: 600,
       }),
     ).toBeNull()
   })

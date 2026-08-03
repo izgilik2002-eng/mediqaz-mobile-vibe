@@ -1,12 +1,15 @@
 import { z } from 'zod'
 
 import { emailSchema, userRoleSchema, userSchema } from './auth'
-import { doctorSpecialtySchema } from './consultations'
+import { doctorSpecialtySchema, transcriptionLanguageSchema } from './consultations'
 
 export const updateProfileRequestSchema = z
   .object({
     displayName: z.union([z.string().trim().min(2).max(80), z.null()]),
     specialty: doctorSpecialtySchema.nullable().optional(),
+    // Not nullable, unlike specialty: there is no "no language" state to
+    // represent, so omitting it means "leave as is".
+    transcriptionLanguage: transcriptionLanguageSchema.optional(),
   })
   .strict()
 

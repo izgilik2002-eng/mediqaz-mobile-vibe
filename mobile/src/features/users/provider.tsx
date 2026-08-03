@@ -1,4 +1,4 @@
-import type { DoctorSpecialty } from '@mediqaz/contracts';
+import type { DoctorSpecialty, TranscriptionLanguage } from '@mediqaz/contracts';
 import { createContext, useCallback, useContext, useMemo, useState, type PropsWithChildren } from 'react';
 
 import { useTranslation } from 'react-i18next';
@@ -11,6 +11,7 @@ type ProfileContextValue = {
   error: string | null;
   isSaving: boolean;
   saveSpecialty: (specialty: DoctorSpecialty) => Promise<boolean>;
+  saveTranscriptionLanguage: (language: TranscriptionLanguage) => Promise<boolean>;
 };
 
 const ProfileContext = createContext<ProfileContextValue | null>(null);
@@ -54,9 +55,37 @@ export function ProfileProvider({
     [api, auth, t],
   );
 
+  const saveTranscriptionLanguage = useCallback(
+    async (transcriptionLanguage: TranscriptionLanguage) => {
+      setIsSaving(true);
+      setError(null);
+
+      try {
+        await api.updateProfile({
+          displayName: auth.user?.displayName ?? null,
+          transcriptionLanguage,
+        });
+        // The cached user drives which languages the recording screen allows,
+        // so it is refreshed before reporting success.
+        await auth.refreshUser();
+        return true;
+      } catch (caughtError) {
+        setError(
+          caughtError instanceof ApiRequestError
+            ? apiErrorMessage(caughtError, t)
+            : t('profile.transcriptionLanguageSaveFailed'),
+        );
+        return false;
+      } finally {
+        setIsSaving(false);
+      }
+    },
+    [api, auth, t],
+  );
+
   const value = useMemo(
-    () => ({ error, isSaving, saveSpecialty }),
-    [error, isSaving, saveSpecialty],
+    () => ({ error, isSaving, saveSpecialty, saveTranscriptionLanguage }),
+    [error, isSaving, saveSpecialty, saveTranscriptionLanguage],
   );
 
   return <ProfileContext.Provider value={value}>{children}</ProfileContext.Provider>;

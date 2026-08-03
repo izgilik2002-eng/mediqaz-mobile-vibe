@@ -14,6 +14,9 @@ model User {
   displayName             String?                  @map("display_name")
   role                    UserRole                 @default(user)
   specialty               DoctorSpecialty?
+  /// Which language the doctor's consultations are transcribed in. Defaults to
+  /// Russian so existing accounts keep the behaviour they already had.
+  transcriptionLanguage   TranscriptionLanguage    @default(ru) @map("transcription_language")
   isApproved              Boolean                  @default(false) @map("is_approved")
   approvedAt              DateTime?                @map("approved_at")
   approvedByUserId        String?                  @map("approved_by_user_id") @db.Uuid
@@ -48,6 +51,16 @@ enum DoctorSpecialty {
   neurologist
 
   @@map("doctor_specialty")
+}
+
+/// The doctor's choice, never a model name. Which provider serves each value is
+/// decided by the transcription router, not by this enum.
+enum TranscriptionLanguage {
+  ru
+  kk
+  multi
+
+  @@map("transcription_language")
 }
 
 enum AppointmentStatus {

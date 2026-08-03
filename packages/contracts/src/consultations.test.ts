@@ -2,12 +2,15 @@ import { describe, expect, test } from 'bun:test'
 
 import {
   askAboutConsultationRequestSchema,
+  DEFAULT_TRANSCRIPTION_LANGUAGE,
   doctorSpecialtySchema,
   generateMedCardRequestSchema,
   medCardSchema,
   MED_CARD_SECTIONS,
   SPECIALTY_NAMES,
   startAppointmentRequestSchema,
+  transcriptionIsCapped,
+  transcriptionLanguageSchema,
 } from './index'
 
 const medCard = {
@@ -75,6 +78,21 @@ describe('consultation contracts', () => {
     expect(() => startAppointmentRequestSchema.parse({ patientName: '' })).toThrow()
     expect(() => startAppointmentRequestSchema.parse({ patientName: '   ' })).toThrow()
     expect(() => startAppointmentRequestSchema.parse({ patientName: 'я'.repeat(201) })).toThrow()
+  })
+
+  test('only the whole-file languages are capped, so Russian keeps unlimited visits', () => {
+    // Russian streams through a model with no processing budget. Capping it
+    // would shorten consultations that work today, which is a regression no
+    // error message makes acceptable.
+    expect(transcriptionIsCapped('ru')).toBe(false)
+    expect(transcriptionIsCapped('kk')).toBe(true)
+    expect(transcriptionIsCapped('multi')).toBe(true)
+  })
+
+  test('the default transcription language is one the enum accepts', () => {
+    // The Prisma column defaults to this value for every existing doctor, so a
+    // drift between the two would silently break accounts on migration.
+    expect(transcriptionLanguageSchema.parse(DEFAULT_TRANSCRIPTION_LANGUAGE)).toBe('ru')
   })
 
   test('consultation questions are bounded and required', () => {

@@ -4,6 +4,7 @@ import type {
   AppointmentSummary,
   DoctorSpecialty,
   MedCard,
+  TranscriptionLanguage,
 } from '@mediqaz/contracts'
 
 import type { ClientReportableStatus } from '../domain/appointment'
@@ -63,6 +64,27 @@ export type AudioTranscriber = {
  * Persists consultations. Audio is never handed to this port: it is discarded
  * after transcription, so only the transcript and med card are kept.
  */
+/**
+ * The one place a doctor's language choice meets a provider and a model.
+ * Everything above this — the service, the routes, the app — knows only
+ * `TranscriptionLanguage`, so replacing Deepgram means adding an adapter and a
+ * row in this table, not editing call sites.
+ */
+export type TranscriptionRouter = {
+  /**
+   * Batch transcriber for the language. Throws a `ConsultationFailure` when no
+   * provider serves it, rather than silently falling back to one that would
+   * return confident nonsense in the wrong language.
+   */
+  batchTranscriberFor(language: TranscriptionLanguage): AudioTranscriber
+  /**
+   * Socket parameters for live transcription, or `null` when no streaming
+   * provider supports the language at all. `null` is a real answer, not an
+   * error state: it is what the caller needs in order to say so plainly.
+   */
+  streamingParamsFor(language: TranscriptionLanguage): Record<string, string> | null
+}
+
 export type AppointmentStore = {
   start(input: {
     doctorId: string
@@ -144,7 +166,10 @@ export type AskQuestionInput = {
 }
 
 export type ConsultationsService = {
-  issueTranscriptionGrant(doctor: ConsultationDoctor): Promise<TranscriptionGrant>
+  /** The credential plus the provider parameters the client opens its socket with. */
+  issueTranscriptionGrant(
+    doctor: ConsultationDoctor,
+  ): Promise<TranscriptionGrant & { params: Record<string, string> }>
   startAppointment(
     doctor: ConsultationDoctor,
     input?: { patientName?: string },

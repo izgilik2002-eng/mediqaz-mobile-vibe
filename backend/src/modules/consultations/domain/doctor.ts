@@ -1,4 +1,4 @@
-import type { DoctorSpecialty } from '@mediqaz/contracts'
+import type { DoctorSpecialty, TranscriptionLanguage } from '@mediqaz/contracts'
 
 import { ConsultationFailure } from './errors'
 
@@ -7,6 +7,7 @@ export type ConsultationDoctor = {
   id: string
   isApproved: boolean
   specialty: DoctorSpecialty | null
+  transcriptionLanguage: TranscriptionLanguage
 }
 
 /**

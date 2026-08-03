@@ -5,6 +5,7 @@ import type {
   AdminUsersQuery,
   AdminUsersResponse,
   DoctorSpecialty,
+  TranscriptionLanguage,
   UserRole,
 } from '@mediqaz/contracts'
 
@@ -15,13 +16,18 @@ export type UserRecord = {
   role: UserRole
   isApproved: boolean
   specialty: DoctorSpecialty | null
+  transcriptionLanguage: TranscriptionLanguage
   createdAt: Date
 }
 
 export type ProfileWriter = {
   updateProfile(
     userId: string,
-    input: { displayName: string | null; specialty?: DoctorSpecialty | null },
+    input: {
+      displayName: string | null
+      specialty?: DoctorSpecialty | null
+      transcriptionLanguage?: TranscriptionLanguage
+    },
   ): Promise<UserRecord>
 }
 

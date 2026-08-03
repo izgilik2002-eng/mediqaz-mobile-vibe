@@ -106,6 +106,12 @@ const envSchema = z.object({
   DEEPGRAM_API_KEY: optionalStringSchema,
   GROQ_API_KEY: optionalStringSchema,
   TRANSCRIPTION_GRANT_TTL_SECONDS: z.coerce.number().int().positive().max(3_600).default(300),
+  // Only bounds the languages served by a whole-file provider; Russian streams
+  // through a model with no such cap. Deepgram's own docs disagree on whether
+  // Whisper's budget is 10 or 20 minutes, so this starts low and moves after
+  // measurement rather than trusting either number.
+  TRANSCRIPTION_MAX_AUDIO_SECONDS: z.coerce.number().int().positive().max(7_200).default(600),
+  DEEPGRAM_WHISPER_MODEL: optionalStringSchema,
   GROQ_MAX_CONCURRENT: z.coerce.number().int().positive().max(16).default(1),
   // A full consultation transcript is far larger than an auth payload; Cyrillic
   // costs two bytes per character, so the limit is sized for the contract cap.

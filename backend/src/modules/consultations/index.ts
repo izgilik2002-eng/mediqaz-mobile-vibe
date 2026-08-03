@@ -4,14 +4,14 @@ import type { AuthenticatedPrincipal } from '../auth'
 import { createConsultationsService } from './application/consultations-service'
 import type {
   AppointmentStore,
-  AudioTranscriber,
   CompletionClient,
   MedCardDeliveryPublisher,
   MisDeliveryCodeStore,
   TranscriptionGrantIssuer,
+  TranscriptionRouter,
 } from './application/ports'
 import { createPrismaAppointmentStore } from './infrastructure/appointments-repository'
-import { createDeepgramAudioTranscriber } from './infrastructure/deepgram-transcription'
+import { createDeepgramTranscriptionRouter } from './infrastructure/transcription-router'
 import { createDeepgramGrantIssuer } from './infrastructure/deepgram-grants'
 import { createGroqCompletionClient } from './infrastructure/groq-completions'
 import { createPrismaMisDeliveryCodeStore } from './infrastructure/mis-delivery-code-repository'
@@ -23,21 +23,21 @@ type CreateConsultationsModuleOptions = {
   env: AppEnv
   /** Overridable so tests do not reach the real providers. */
   appointments?: AppointmentStore
-  audioTranscriber?: AudioTranscriber
   completions?: CompletionClient
   medCardDelivery?: MedCardDeliveryPublisher
   misDeliveryCodes?: MisDeliveryCodeStore
+  transcription?: TranscriptionRouter
   transcriptionGrants?: TranscriptionGrantIssuer
 }
 
 export function createConsultationsModule({
   appointments,
-  audioTranscriber,
   db,
   env,
   completions,
   medCardDelivery,
   misDeliveryCodes,
+  transcription,
   transcriptionGrants,
 }: CreateConsultationsModuleOptions) {
   const service = createConsultationsService({
@@ -51,9 +51,13 @@ export function createConsultationsModule({
     transcriptionGrants:
       transcriptionGrants ??
       createDeepgramGrantIssuer({ apiKey: requireProviderKey(env, 'DEEPGRAM_API_KEY') }),
-    audioTranscriber:
-      audioTranscriber ??
-      createDeepgramAudioTranscriber({ apiKey: requireProviderKey(env, 'DEEPGRAM_API_KEY') }),
+    transcription:
+      transcription ??
+      createDeepgramTranscriptionRouter({
+        apiKey: requireProviderKey(env, 'DEEPGRAM_API_KEY'),
+        whisperModel: env.DEEPGRAM_WHISPER_MODEL || undefined,
+        maxAudioSeconds: env.TRANSCRIPTION_MAX_AUDIO_SECONDS,
+      }),
     // Unlike the transcription and completion providers, delivery is optional:
     // a deployment without Supabase still records consultations and generates
     // med cards, it just cannot hand them to the extension. The service turns a
@@ -112,4 +116,5 @@ export type {
   MedCardDeliveryPublisher,
   MisDeliveryCodeStore,
   TranscriptionGrantIssuer,
+  TranscriptionRouter,
 } from './application/ports'

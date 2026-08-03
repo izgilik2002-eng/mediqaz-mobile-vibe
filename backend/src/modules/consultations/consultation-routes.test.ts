@@ -1,7 +1,5 @@
 import { describe, expect, test } from 'bun:test'
 
-import { TRANSCRIPTION_PARAMS } from '@mediqaz/contracts'
-
 import { createApp } from '../../app'
 import type { DbClient } from '../../db'
 import type { AppEnv } from '../../env'
@@ -42,6 +40,7 @@ const env: AppEnv = {
   CONSULTATION_RATE_LIMIT_MAX: 60,
   CONSULTATION_RATE_LIMIT_WINDOW_SECONDS: 60,
   MIS_DELIVERY_TTL_HOURS: 24,
+  TRANSCRIPTION_MAX_AUDIO_SECONDS: 600,
 } as AppEnv
 
 const medCardJson = JSON.stringify({
@@ -87,11 +86,15 @@ function createTestApp(overrides: {
   transcriptionGrants?: TranscriptionGrantIssuer
   env?: Partial<AppEnv>
 } = {}) {
+  const transcriber = overrides.audioTranscriber ?? workingAudioTranscriber
   return createApp({
     env: { ...env, ...overrides.env },
     prisma: {} as DbClient,
     appointments: overrides.appointments ?? appointmentStore,
-    audioTranscriber: overrides.audioTranscriber ?? workingAudioTranscriber,
+    transcription: {
+      batchTranscriberFor: () => transcriber,
+      streamingParamsFor: () => ({ model: 'nova-2', language: 'ru' }),
+    },
     completions: overrides.completions ?? { complete: async () => medCardJson },
     transcriptionGrants:
       overrides.transcriptionGrants ??
@@ -240,13 +243,11 @@ describe('consultation routes', () => {
     expect(response.status).toBe(413)
   })
 
-  test('exposes the transcription parameters the client must open the stream with', async () => {
+  test('mounts the consultation routes', async () => {
     const app = createTestApp()
     const routes = app.routes.filter((route) => route.path.includes('consultations'))
 
     expect(routes.length).toBeGreaterThan(0)
-    expect(Object.keys(TRANSCRIPTION_PARAMS)).toContain('model')
-    expect(TRANSCRIPTION_PARAMS.language).toBe('ru')
   })
 })
 

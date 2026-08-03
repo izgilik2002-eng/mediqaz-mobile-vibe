@@ -35,6 +35,7 @@ export class UsersService {
     const user = await this.dependencies.profileWriter.updateProfile(principal.id, {
       displayName: input.displayName,
       specialty: input.specialty,
+      transcriptionLanguage: input.transcriptionLanguage,
     })
     return {
       user: this.userDto(user),
@@ -92,6 +93,7 @@ export class UsersService {
       role: user.role,
       isApproved: user.isApproved,
       specialty: user.specialty,
+      transcriptionLanguage: user.transcriptionLanguage,
       createdAt: user.createdAt.toISOString(),
     }
   }

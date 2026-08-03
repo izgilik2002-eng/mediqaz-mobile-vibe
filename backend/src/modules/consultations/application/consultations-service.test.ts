@@ -4,6 +4,7 @@ import type { AppointmentStatus, AppointmentSummary, MedCard } from '@mediqaz/co
 import { MED_CARD_EMPTY_SECTION } from '@mediqaz/contracts'
 
 import type { ConsultationDoctor } from '../domain/doctor'
+import { RecordingTooLongError } from '../domain/errors'
 import type {
   AppointmentStore,
   AudioTranscriber,
@@ -12,6 +13,7 @@ import type {
   MedCardDeliveryPublisher,
   MisDeliveryCodeStore,
   TranscriptionGrantIssuer,
+  TranscriptionRouter,
 } from './ports'
 import { createConsultationsService } from './consultations-service'
 
@@ -32,6 +34,7 @@ const approvedDoctor: ConsultationDoctor = {
   id: 'doctor-1',
   isApproved: true,
   specialty: 'therapist',
+  transcriptionLanguage: 'ru',
 }
 
 const summary: AppointmentSummary = {
@@ -149,11 +152,28 @@ const workingAudioTranscriber: AudioTranscriber = {
   transcribe: async () => ({ transcript: 'доктор: на что жалуетесь', durationSeconds: 180 }),
 }
 
+/**
+ * Production has exactly one path from a language to a provider — the router.
+ * These tests are about the service's own rules, not that mapping (which has
+ * its own test), so they hand it a router that answers the same transcriber for
+ * every language.
+ */
+function routerFor(
+  transcriber: AudioTranscriber,
+  streamingParams: Record<string, string> | null = { model: 'test-model' },
+): TranscriptionRouter {
+  return {
+    batchTranscriberFor: () => transcriber,
+    streamingParamsFor: () => streamingParams,
+  }
+}
+
 function createService(overrides: {
   store?: AppointmentStore
   completions?: CompletionClient
   transcriptionGrants?: TranscriptionGrantIssuer
   audioTranscriber?: AudioTranscriber
+  transcription?: TranscriptionRouter
   medCardDelivery?: MedCardDeliveryPublisher
   misDeliveryCodes?: MisDeliveryCodeStore
   misDeliveryTtlHours?: number
@@ -162,7 +182,8 @@ function createService(overrides: {
     appointments: overrides.store ?? createStore().store,
     completions: overrides.completions ?? completionsReturning(medCardJson),
     transcriptionGrants: overrides.transcriptionGrants ?? workingGrants,
-    audioTranscriber: overrides.audioTranscriber ?? workingAudioTranscriber,
+    transcription:
+      overrides.transcription ?? routerFor(overrides.audioTranscriber ?? workingAudioTranscriber),
     medCardDelivery: overrides.medCardDelivery,
     // Unlike medCardDelivery, the real module wiring (index.ts) never leaves
     // this unset — it always creates a Prisma-backed code store. Defaulting it
@@ -509,18 +530,90 @@ test('reports a transcription provider outage as a domain failure', async () => 
   })
 })
 
-test('issues a transcription grant with the configured lifetime', async () => {
+test('issues a transcription grant with the configured lifetime and the provider parameters', async () => {
   const service = createConsultationsService({
     appointments: createStore().store,
     completions: completionsReturning(medCardJson),
     transcriptionGrants: workingGrants,
+    transcription: routerFor(workingAudioTranscriber, { model: 'nova-2', language: 'ru' }),
     transcriptionGrantTtlSeconds: 120,
   })
 
   await expect(service.issueTranscriptionGrant(approvedDoctor)).resolves.toEqual({
     accessToken: 'grant-token',
     expiresIn: 120,
+    params: { model: 'nova-2', language: 'ru' },
   })
+})
+
+test('refuses a live credential for a language no provider streams', async () => {
+  let issued = 0
+  const service = createService({
+    transcription: routerFor(workingAudioTranscriber, null),
+    transcriptionGrants: {
+      issue: async ({ ttlSeconds }) => {
+        issued += 1
+        return { accessToken: 'grant-token', expiresIn: ttlSeconds }
+      },
+    },
+  })
+
+  await expect(
+    service.issueTranscriptionGrant({ ...approvedDoctor, transcriptionLanguage: 'kk' }),
+  ).rejects.toMatchObject({ code: 'live_unavailable_for_language' })
+
+  // Asked before the credential is bought: a token here would only buy a socket
+  // that transcribes nothing.
+  expect(issued).toBe(0)
+})
+
+test('asks the router for the doctor language, not a hardcoded one', async () => {
+  const asked: string[] = []
+  const service = createService({
+    transcription: {
+      batchTranscriberFor: (language) => {
+        asked.push(language)
+        return workingAudioTranscriber
+      },
+      streamingParamsFor: () => null,
+    },
+  })
+
+  await service.transcribeAndGenerateMedCard({
+    doctor: { ...approvedDoctor, transcriptionLanguage: 'kk' },
+    appointmentId: 'appointment-1',
+    audio: new Uint8Array([1, 2, 3]),
+    contentType: 'audio/mp4',
+  })
+
+  expect(asked).toEqual(['kk'])
+})
+
+test('tells the doctor a recording was too long instead of asking for a retry', async () => {
+  const { store, calls } = createStore()
+  const service = createService({
+    store,
+    audioTranscriber: {
+      transcribe: async () => {
+        throw new RecordingTooLongError(600)
+      },
+    },
+  })
+
+  await expect(
+    service.transcribeAndGenerateMedCard({
+      doctor: approvedDoctor,
+      appointmentId: 'appointment-1',
+      audio: new Uint8Array([1, 2, 3]),
+      contentType: 'audio/mp4',
+    }),
+  ).rejects.toMatchObject({ code: 'recording_too_long' })
+
+  // Recorded as its own reason: "audio_transcription_failed" would suggest a
+  // transient provider problem, and the doctor would retry the same file.
+  expect(calls.failed).toEqual([
+    { appointmentId: 'appointment-1', reason: 'recording_too_long' },
+  ])
 })
 
 test('never serves a med card the stored shape no longer matches', async () => {

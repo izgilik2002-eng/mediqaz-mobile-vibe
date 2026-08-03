@@ -8,6 +8,12 @@ import {
   type AudioRecorder,
 } from 'expo-audio';
 
+import {
+  TRANSCRIPTION_MAX_AUDIO_SECONDS,
+  transcriptionIsCapped,
+  type TranscriptionLanguage,
+} from '@mediqaz/contracts';
+
 import { apiErrorMessage } from '@/platform/api';
 import type { ConsultationsApi } from './api';
 import {
@@ -18,7 +24,10 @@ import {
   type RecordingSessionState,
 } from './recording-session';
 
-export function useAppointmentRecording(api: ConsultationsApi) {
+export function useAppointmentRecording(
+  api: ConsultationsApi,
+  transcriptionLanguage: TranscriptionLanguage,
+) {
   const { t } = useTranslation();
   const recorder = useAudioRecorder(CONSULTATION_RECORDING_OPTIONS);
   const recorderState = useAudioRecorderState(recorder, 250);
@@ -63,6 +72,24 @@ export function useAppointmentRecording(api: ConsultationsApi) {
   );
 
   const stopAndSend = useCallback(async () => {
+    // Checked before the upload, not after: the backend enforces the same limit
+    // and would reject anyway, but only once the doctor has already spent
+    // several minutes of mobile data sending the file.
+    const recordedSeconds = Math.floor(recorderState.durationMillis / 1000);
+    if (transcriptionIsCapped(transcriptionLanguage) && recordedSeconds > TRANSCRIPTION_MAX_AUDIO_SECONDS) {
+      await stopIfPrepared(recorder);
+      dispatch({
+        type: 'stop',
+      });
+      dispatch({
+        type: 'failed',
+        message: t('appointment.tooLongMessage', {
+          minutes: Math.floor(TRANSCRIPTION_MAX_AUDIO_SECONDS / 60),
+        }),
+      });
+      return;
+    }
+
     dispatch({ type: 'stop' });
 
     try {
@@ -88,7 +115,7 @@ export function useAppointmentRecording(api: ConsultationsApi) {
     } catch (error) {
       dispatch({ type: 'failed', message: apiErrorMessage(error, t) });
     }
-  }, [api, recorder, t]);
+  }, [api, recorder, recorderState.durationMillis, t, transcriptionLanguage]);
 
   const reset = useCallback(() => {
     appointmentIdRef.current = null;
