@@ -1,6 +1,6 @@
 import { TRANSCRIPTION_MAX_AUDIO_SECONDS } from '@mediqaz/contracts'
 
-import { RecordingTooLongError } from '../domain/errors'
+import { RecordingTooLongError, TranscriptionTimedOutError } from '../domain/errors'
 import type { AudioTranscriber, AudioTranscription, FetchLike } from '../application/ports'
 
 const listenEndpoint = 'https://api.deepgram.com/v1/listen'
@@ -16,10 +16,13 @@ const listenEndpoint = 'https://api.deepgram.com/v1/listen'
  *    Kazakh — Nova-3's multilingual set does not include it either. So there is
  *    no streaming export here, and the router answers `null` for these
  *    languages rather than pretending.
- * 2. It processes the whole file against a hard timeout and answers 504 past
- *    it. Deepgram's own docs disagree on whether that budget is 10 or 20
- *    minutes, so the cap is configurable and defaults low; a 504 is translated
- *    into a "record a shorter visit" failure instead of a generic retry.
+ * 2. Its latency is wildly unpredictable. Measured against this very endpoint
+ *    on a three-second file: 1s, 6s, 45s, 80s, and once past 180s with no
+ *    answer at all — same key, same audio, minutes apart. Deepgram's own docs
+ *    call Whisper "less scalable than all other Deepgram models". So a slow
+ *    request says nothing about the recording, and the two failures are kept
+ *    strictly apart: a 504 is the provider's own length budget, our timeout is
+ *    the provider being slow.
  */
 export function createDeepgramWhisperTranscriber({
   apiKey,
@@ -27,7 +30,10 @@ export function createDeepgramWhisperTranscriber({
   model = 'whisper-medium',
   maxAudioSeconds = TRANSCRIPTION_MAX_AUDIO_SECONDS,
   fetchImpl = fetch,
-  timeoutMs = 180_000,
+  // Generous rather than tuned: with observed latency swinging between one
+  // second and over three minutes for identical input, any tighter number is
+  // guesswork that turns provider variance into a failed consultation.
+  timeoutMs = 300_000,
 }: {
   apiKey: string
   /**
@@ -51,6 +57,12 @@ export function createDeepgramWhisperTranscriber({
 
   return {
     async transcribe({ audio, contentType }): Promise<AudioTranscription> {
+      // Logged on every outcome. Without this the only visible symptom was the
+      // message the doctor read, which is how a slow provider spent a release
+      // masquerading as an over-long recording.
+      const startedAt = Date.now()
+      const elapsed = () => Date.now() - startedAt
+
       let response: Response
       try {
         response = await fetchImpl(`${listenEndpoint}?${query}`, {
@@ -65,19 +77,46 @@ export function createDeepgramWhisperTranscriber({
           signal: AbortSignal.timeout(timeoutMs),
         })
       } catch (cause) {
-        // Our own timeout firing on a long file means the same thing to the
-        // doctor as the provider's 504: the recording was too long to process.
         if (cause instanceof Error && cause.name === 'TimeoutError') {
-          throw new RecordingTooLongError(maxAudioSeconds)
+          console.error('[whisper] provider did not answer within the timeout', {
+            model,
+            language: language ?? 'detect',
+            elapsedMs: elapsed(),
+            timeoutMs,
+          })
+          throw new TranscriptionTimedOutError(timeoutMs)
         }
+
+        console.error('[whisper] request failed before a response', {
+          model,
+          language: language ?? 'detect',
+          elapsedMs: elapsed(),
+          cause: cause instanceof Error ? `${cause.name}: ${cause.message}` : String(cause),
+        })
         throw cause
       }
 
+      // 504 is Deepgram's own processing budget, which does track file length —
+      // unlike our timeout above.
       if (response.status === 504) {
+        console.error('[whisper] provider reported its processing budget exceeded', {
+          model,
+          language: language ?? 'detect',
+          elapsedMs: elapsed(),
+          maxAudioSeconds,
+        })
         throw new RecordingTooLongError(maxAudioSeconds)
       }
 
       if (!response.ok) {
+        const body = await response.text().catch(() => '<body could not be read>')
+        console.error('[whisper] provider rejected the request', {
+          model,
+          language: language ?? 'detect',
+          elapsedMs: elapsed(),
+          status: response.status,
+          body: body.slice(0, 500),
+        })
         throw new Error(`Deepgram Whisper transcription failed with status ${response.status}`)
       }
 
@@ -88,6 +127,11 @@ export function createDeepgramWhisperTranscriber({
       const transcript = payload.results?.channels?.[0]?.alternatives?.[0]?.transcript
 
       if (typeof transcript !== 'string' || transcript.trim() === '') {
+        console.error('[whisper] provider answered without a transcript', {
+          model,
+          language: language ?? 'detect',
+          elapsedMs: elapsed(),
+        })
         throw new Error('Deepgram Whisper response contained no transcript')
       }
 
@@ -101,8 +145,24 @@ export function createDeepgramWhisperTranscriber({
       // configured cap is lower — but a cap the doctor was told about should
       // hold, otherwise the number in the app means nothing.
       if (durationSeconds > maxAudioSeconds) {
+        console.error('[whisper] recording longer than the configured cap', {
+          model,
+          language: language ?? 'detect',
+          elapsedMs: elapsed(),
+          durationSeconds,
+          maxAudioSeconds,
+        })
         throw new RecordingTooLongError(maxAudioSeconds)
       }
+
+      // Success is logged too: the latency spread is the thing to watch, and it
+      // is invisible if only failures are recorded.
+      console.log('[whisper] transcribed', {
+        model,
+        language: language ?? 'detect',
+        elapsedMs: elapsed(),
+        durationSeconds,
+      })
 
       return { transcript, durationSeconds }
     },

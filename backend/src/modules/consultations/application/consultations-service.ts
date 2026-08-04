@@ -2,7 +2,11 @@ import type { Appointment, AppointmentSummary, DoctorSpecialty, MedCard } from '
 
 import { assertMayGenerate, assertMayReportProgress } from '../domain/appointment'
 import { assertMayRecord, requireSpecialty, type ConsultationDoctor } from '../domain/doctor'
-import { ConsultationFailure, RecordingTooLongError } from '../domain/errors'
+import {
+  ConsultationFailure,
+  RecordingTooLongError,
+  TranscriptionTimedOutError,
+} from '../domain/errors'
 import { MedCardParseError, parseMedCard } from '../domain/med-card'
 import {
   buildMedCardSystemPrompt,
@@ -210,19 +214,15 @@ export function createConsultationsService({
           contentType: input.contentType,
         })
       } catch (cause) {
-        // A recording the provider refuses for length fails identically on
-        // every retry, so it gets its own answer rather than "try again".
-        const reason =
-          cause instanceof RecordingTooLongError ? 'recording_too_long' : 'audio_transcription_failed'
+        // Three genuinely different situations, three answers. A recording the
+        // provider refuses for length fails identically on every retry; a
+        // provider that was merely slow usually succeeds on the next attempt,
+        // and telling that doctor to shorten the visit would send them to fix
+        // something that was never wrong.
+        const reason = failureReasonFor(cause)
 
         await appointments.markFailed({ appointmentId: input.appointmentId, reason })
-
-        throw new ConsultationFailure(
-          reason,
-          reason === 'recording_too_long'
-            ? 'The recording is longer than the transcription provider accepts'
-            : 'Could not transcribe the recording',
-        )
+        throw new ConsultationFailure(reason, failureMessageFor(reason))
       }
 
       return runGeneration(
@@ -331,6 +331,23 @@ export function createConsultationsService({
 
       return { deliveredAt, expiresAt }
     },
+  }
+
+  function failureReasonFor(cause: unknown) {
+    if (cause instanceof RecordingTooLongError) return 'recording_too_long' as const
+    if (cause instanceof TranscriptionTimedOutError) return 'transcription_timed_out' as const
+    return 'audio_transcription_failed' as const
+  }
+
+  function failureMessageFor(reason: ReturnType<typeof failureReasonFor>) {
+    switch (reason) {
+      case 'recording_too_long':
+        return 'The recording is longer than the transcription provider accepts'
+      case 'transcription_timed_out':
+        return 'The transcription provider did not answer in time'
+      default:
+        return 'Could not transcribe the recording'
+    }
   }
 
   function requireCodeStore(): MisDeliveryCodeStore {

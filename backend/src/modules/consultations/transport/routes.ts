@@ -108,6 +108,10 @@ const audioRoute = createRoute({
       description: 'The recording is longer than the provider accepts',
     },
     502: upstreamResponse,
+    504: {
+      content: errorResponseContent,
+      description: 'The transcription provider did not answer in time',
+    },
   },
 })
 
@@ -489,6 +493,14 @@ function toAppError(failure: ConsultationFailure) {
         413,
         'CONSULTATION_RECORDING_TOO_LONG',
         'Запись слишком длинная для распознавания. Запишите приём короче.',
+      )
+    case 'transcription_timed_out':
+      // 504, not 413: nothing is wrong with the recording, and unlike a
+      // too-long file this one is worth sending again as is.
+      return new AppError(
+        504,
+        'CONSULTATION_TRANSCRIPTION_TIMED_OUT',
+        'Сервис распознавания не ответил вовремя. Отправьте запись ещё раз.',
       )
     case 'live_unavailable_for_language':
       return new AppError(

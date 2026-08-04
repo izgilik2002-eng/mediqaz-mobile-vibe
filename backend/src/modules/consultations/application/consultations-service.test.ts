@@ -4,7 +4,7 @@ import type { AppointmentStatus, AppointmentSummary, MedCard } from '@mediqaz/co
 import { MED_CARD_EMPTY_SECTION } from '@mediqaz/contracts'
 
 import type { ConsultationDoctor } from '../domain/doctor'
-import { RecordingTooLongError } from '../domain/errors'
+import { RecordingTooLongError, TranscriptionTimedOutError } from '../domain/errors'
 import type {
   AppointmentStore,
   AudioTranscriber,
@@ -613,6 +613,35 @@ test('tells the doctor a recording was too long instead of asking for a retry', 
   // transient provider problem, and the doctor would retry the same file.
   expect(calls.failed).toEqual([
     { appointmentId: 'appointment-1', reason: 'recording_too_long' },
+  ])
+})
+
+test('a slow provider is never reported as an over-long recording', async () => {
+  const { store, calls } = createStore()
+  const service = createService({
+    store,
+    audioTranscriber: {
+      transcribe: async () => {
+        throw new TranscriptionTimedOutError(300_000)
+      },
+    },
+  })
+
+  // Deepgram's Whisper has answered the same three-second file in one second
+  // and in over three minutes. Blaming the recording sends the doctor to
+  // shorten a visit that was never the problem, and the same file usually
+  // goes through on the next attempt.
+  await expect(
+    service.transcribeAndGenerateMedCard({
+      doctor: approvedDoctor,
+      appointmentId: 'appointment-1',
+      audio: new Uint8Array([1, 2, 3]),
+      contentType: 'audio/mp4',
+    }),
+  ).rejects.toMatchObject({ code: 'transcription_timed_out' })
+
+  expect(calls.failed).toEqual([
+    { appointmentId: 'appointment-1', reason: 'transcription_timed_out' },
   ])
 })
 
