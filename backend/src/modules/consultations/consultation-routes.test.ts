@@ -1,14 +1,19 @@
 import { describe, expect, test } from 'bun:test'
+import { OpenAPIHono } from '@hono/zod-openapi'
 
 import { createApp } from '../../app'
 import type { DbClient } from '../../db'
 import type { AppEnv } from '../../env'
+import { handleError } from '../../http/errors'
+import type { AuthenticatedPrincipal } from '../auth'
 import type {
   AppointmentStore,
   AudioTranscriber,
   CompletionClient,
   TranscriptionGrantIssuer,
 } from './application/ports'
+import { SpeechNotRecognizedError } from './domain/errors'
+import { createConsultationsModule } from './index'
 
 const env: AppEnv = {
   PORT: 3000,
@@ -77,6 +82,49 @@ const appointmentStore: AppointmentStore = {
 
 const workingAudioTranscriber: AudioTranscriber = {
   transcribe: async () => ({ transcript: 'приём', durationSeconds: 120 }),
+}
+
+const authenticatedDoctor: AuthenticatedPrincipal = {
+  id: 'doctor-1',
+  email: 'doctor@example.com',
+  displayName: 'Доктор',
+  role: 'user',
+  isApproved: true,
+  specialty: 'therapist',
+  transcriptionLanguage: 'ru',
+  createdAt: '2026-07-27T10:00:00.000Z',
+  sessionId: 'session-1',
+}
+
+/**
+ * `createTestApp` above goes through the real `createApp`, which composes a
+ * real auth module against `prisma: {} as DbClient` — fine for the
+ * before-auth checks the rest of this file asserts (401, rate limit, body
+ * limit), but a genuinely authenticated call would hit `db.authSession
+ * .findFirst` on that fake and throw. This harness instead builds the
+ * consultations routes directly with `createConsultationRoutes`'s own
+ * injectable `authenticateAccessToken`, so the ConsultationFailure -> AppError
+ * -> HTTP status mapping in `toAppError` can be exercised end to end without
+ * a real database.
+ */
+function createAuthenticatedConsultationsApp(overrides: {
+  appointments?: AppointmentStore
+  audioTranscriber?: AudioTranscriber
+} = {}) {
+  const { createRoutes } = createConsultationsModule({
+    db: {} as DbClient,
+    env,
+    appointments: overrides.appointments ?? appointmentStore,
+    transcription: {
+      batchTranscriberFor: () => overrides.audioTranscriber ?? workingAudioTranscriber,
+      streamingParamsFor: () => ({ model: 'nova-2', language: 'ru' }),
+    },
+  })
+
+  const app = new OpenAPIHono()
+  app.route('/api/consultations', createRoutes(async () => authenticatedDoctor))
+  app.onError(handleError)
+  return app
 }
 
 function createTestApp(overrides: {
@@ -241,6 +289,50 @@ describe('consultation routes', () => {
     })
 
     expect(response.status).toBe(413)
+  })
+
+  test('reports a silent recording as 422 speech-not-recognized, not the generic provider failure', async () => {
+    // The one regression this test exists to catch: deleting the
+    // speech_not_recognized case from toAppError falls through to the
+    // `default:` branch, which is 502 CONSULTATION_PROVIDER_UNAVAILABLE — the
+    // exact "try again" message this failure code exists to stop sending.
+    const app = createAuthenticatedConsultationsApp({
+      audioTranscriber: {
+        transcribe: async () => {
+          throw new SpeechNotRecognizedError()
+        },
+      },
+    })
+
+    const response = await app.request(audioPath, {
+      method: 'POST',
+      headers: { 'Content-Type': 'audio/mp4', Authorization: 'Bearer test-token' },
+      body: new Uint8Array([1, 2, 3]),
+    })
+
+    expect(response.status).toBe(422)
+    const body = (await response.json()) as { error: { code: string } }
+    expect(body.error.code).toBe('CONSULTATION_SPEECH_NOT_RECOGNIZED')
+  })
+
+  test('keeps a generic transcription failure on the 502 path, distinct from speech-not-recognized', async () => {
+    const app = createAuthenticatedConsultationsApp({
+      audioTranscriber: {
+        transcribe: async () => {
+          throw new Error('provider on fire')
+        },
+      },
+    })
+
+    const response = await app.request(audioPath, {
+      method: 'POST',
+      headers: { 'Content-Type': 'audio/mp4', Authorization: 'Bearer test-token' },
+      body: new Uint8Array([1, 2, 3]),
+    })
+
+    expect(response.status).toBe(502)
+    const body = (await response.json()) as { error: { code: string } }
+    expect(body.error.code).toBe('CONSULTATION_AUDIO_UNREADABLE')
   })
 
   test('mounts the consultation routes', async () => {

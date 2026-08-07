@@ -4,7 +4,11 @@ import type { AppointmentStatus, AppointmentSummary, MedCard } from '@mediqaz/co
 import { MED_CARD_EMPTY_SECTION } from '@mediqaz/contracts'
 
 import type { ConsultationDoctor } from '../domain/doctor'
-import { RecordingTooLongError, TranscriptionTimedOutError } from '../domain/errors'
+import {
+  RecordingTooLongError,
+  SpeechNotRecognizedError,
+  TranscriptionTimedOutError,
+} from '../domain/errors'
 import type {
   AppointmentStore,
   AudioTranscriber,
@@ -642,6 +646,34 @@ test('a slow provider is never reported as an over-long recording', async () => 
 
   expect(calls.failed).toEqual([
     { appointmentId: 'appointment-1', reason: 'transcription_timed_out' },
+  ])
+})
+
+test('no speech recognized is reported distinctly, not as a generic transcription failure', async () => {
+  const { store, calls } = createStore()
+  const service = createService({
+    store,
+    audioTranscriber: {
+      transcribe: async () => {
+        throw new SpeechNotRecognizedError()
+      },
+    },
+  })
+
+  // The doctor should be told nothing was recognized, not "try again" as if
+  // the provider were down — that would misdirect them on a recording that is
+  // probably silent or empty.
+  await expect(
+    service.transcribeAndGenerateMedCard({
+      doctor: approvedDoctor,
+      appointmentId: 'appointment-1',
+      audio: new Uint8Array([1, 2, 3]),
+      contentType: 'audio/mp4',
+    }),
+  ).rejects.toMatchObject({ code: 'speech_not_recognized' })
+
+  expect(calls.failed).toEqual([
+    { appointmentId: 'appointment-1', reason: 'speech_not_recognized' },
   ])
 })
 

@@ -2,6 +2,7 @@ import { TRANSCRIPTION_MAX_AUDIO_SECONDS } from '@mediqaz/contracts'
 
 import { RecordingTooLongError, TranscriptionTimedOutError } from '../domain/errors'
 import type { AudioTranscriber, AudioTranscription, FetchLike } from '../application/ports'
+import { readDeepgramTranscription } from './deepgram-response'
 
 const listenEndpoint = 'https://api.deepgram.com/v1/listen'
 
@@ -55,11 +56,17 @@ export function createDeepgramWhisperTranscriber({
     ...(language ? { language } : { detect_language: 'true' }),
   }).toString()
 
+  // One label for this adapter's language in every log line it writes, so a
+  // log query for one outcome cannot silently miss another.
+  const languageLabel = language ?? 'detect'
+
   return {
     async transcribe({ audio, contentType }): Promise<AudioTranscription> {
-      // Logged on every outcome. Without this the only visible symptom was the
-      // message the doctor read, which is how a slow provider spent a release
-      // masquerading as an over-long recording.
+      // Every outcome that reaches this adapter is logged — the request never
+      // starting, the provider refusing, and every classification of a 200 in
+      // `readDeepgramTranscription`. Without that, the only visible symptom was
+      // the message the doctor read, which is how a slow provider once spent a
+      // release masquerading as an over-long recording.
       const startedAt = Date.now()
       const elapsed = () => Date.now() - startedAt
 
@@ -80,7 +87,7 @@ export function createDeepgramWhisperTranscriber({
         if (cause instanceof Error && cause.name === 'TimeoutError') {
           console.error('[whisper] provider did not answer within the timeout', {
             model,
-            language: language ?? 'detect',
+            language: languageLabel,
             elapsedMs: elapsed(),
             timeoutMs,
           })
@@ -89,7 +96,7 @@ export function createDeepgramWhisperTranscriber({
 
         console.error('[whisper] request failed before a response', {
           model,
-          language: language ?? 'detect',
+          language: languageLabel,
           elapsedMs: elapsed(),
           cause: cause instanceof Error ? `${cause.name}: ${cause.message}` : String(cause),
         })
@@ -101,7 +108,7 @@ export function createDeepgramWhisperTranscriber({
       if (response.status === 504) {
         console.error('[whisper] provider reported its processing budget exceeded', {
           model,
-          language: language ?? 'detect',
+          language: languageLabel,
           elapsedMs: elapsed(),
           maxAudioSeconds,
         })
@@ -112,7 +119,7 @@ export function createDeepgramWhisperTranscriber({
         const body = await response.text().catch(() => '<body could not be read>')
         console.error('[whisper] provider rejected the request', {
           model,
-          language: language ?? 'detect',
+          language: languageLabel,
           elapsedMs: elapsed(),
           status: response.status,
           body: body.slice(0, 500),
@@ -120,51 +127,32 @@ export function createDeepgramWhisperTranscriber({
         throw new Error(`Deepgram Whisper transcription failed with status ${response.status}`)
       }
 
-      const payload = (await response.json()) as {
-        metadata?: { duration?: unknown }
-        results?: { channels?: Array<{ alternatives?: Array<{ transcript?: unknown }> }> }
-      }
-      const transcript = payload.results?.channels?.[0]?.alternatives?.[0]?.transcript
-
-      if (typeof transcript !== 'string' || transcript.trim() === '') {
-        console.error('[whisper] provider answered without a transcript', {
-          model,
-          language: language ?? 'detect',
-          elapsedMs: elapsed(),
-        })
-        throw new Error('Deepgram Whisper response contained no transcript')
-      }
-
-      const duration = payload.metadata?.duration
-      const durationSeconds =
-        typeof duration === 'number' && Number.isFinite(duration) && duration >= 0
-          ? Math.round(duration)
-          : 0
+      // Shared with the Nova-2 adapter: telling "the provider heard nothing"
+      // apart from "the provider sent something we cannot read" is the same
+      // problem in both, and a doctor recording in Russian deserves the same
+      // answer for a silent visit as one recording in Kazakh.
+      const reading = await readDeepgramTranscription(response, {
+        model,
+        language: languageLabel,
+        startedAt,
+        tag: 'whisper',
+      })
 
       // The provider answered, so the file was within its budget even if our
       // configured cap is lower — but a cap the doctor was told about should
       // hold, otherwise the number in the app means nothing.
-      if (durationSeconds > maxAudioSeconds) {
+      if (reading.durationSeconds > maxAudioSeconds) {
         console.error('[whisper] recording longer than the configured cap', {
           model,
-          language: language ?? 'detect',
+          language: languageLabel,
           elapsedMs: elapsed(),
-          durationSeconds,
+          durationSeconds: reading.durationSeconds,
           maxAudioSeconds,
         })
         throw new RecordingTooLongError(maxAudioSeconds)
       }
 
-      // Success is logged too: the latency spread is the thing to watch, and it
-      // is invisible if only failures are recorded.
-      console.log('[whisper] transcribed', {
-        model,
-        language: language ?? 'detect',
-        elapsedMs: elapsed(),
-        durationSeconds,
-      })
-
-      return { transcript, durationSeconds }
+      return reading
     },
   }
 }

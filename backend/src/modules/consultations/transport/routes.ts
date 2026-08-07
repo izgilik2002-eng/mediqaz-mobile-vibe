@@ -107,6 +107,10 @@ const audioRoute = createRoute({
       content: errorResponseContent,
       description: 'The recording is longer than the provider accepts',
     },
+    422: {
+      content: errorResponseContent,
+      description: 'The provider answered but recognized no speech in the recording',
+    },
     502: upstreamResponse,
     504: {
       content: errorResponseContent,
@@ -501,6 +505,15 @@ function toAppError(failure: ConsultationFailure) {
         504,
         'CONSULTATION_TRANSCRIPTION_TIMED_OUT',
         'Сервис распознавания не ответил вовремя. Отправьте запись ещё раз.',
+      )
+    case 'speech_not_recognized':
+      // 422: the request was fine and the provider answered successfully —
+      // this is neither an outage (502/504) nor a length problem (413), so it
+      // gets its own status instead of implying something is broken upstream.
+      return new AppError(
+        422,
+        'CONSULTATION_SPEECH_NOT_RECOGNIZED',
+        'Не удалось распознать речь в записи. Убедитесь, что запись не пустая и звук слышен, затем попробуйте ещё раз.',
       )
     case 'live_unavailable_for_language':
       return new AppError(

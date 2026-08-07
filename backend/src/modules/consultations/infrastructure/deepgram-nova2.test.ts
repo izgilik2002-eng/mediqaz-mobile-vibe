@@ -1,5 +1,7 @@
 import { expect, test } from 'bun:test'
 
+import { SpeechNotRecognizedError } from '../domain/errors'
+import { DeepgramResponseError } from './deepgram-response'
 import { createDeepgramNova2Transcriber } from './deepgram-nova2'
 
 function jsonResponse(body: unknown, status = 200) {
@@ -63,13 +65,29 @@ test('rejects a provider error instead of returning an empty transcript', async 
   ).rejects.toThrow('status 400')
 })
 
-test('rejects a success response that carries no transcript', async () => {
+test('a silent Russian recording gets the same "no speech" answer as Kazakh does', async () => {
+  // Nova-2's shape for silence, observed live: one alternative holding an
+  // empty string. Russian is the language most consultations are recorded in,
+  // so this must not fall through to the generic provider failure that tells
+  // the doctor to send the same silent file again.
   const transcriber = createDeepgramNova2Transcriber({
     apiKey: 'k',
-    fetchImpl: async () => jsonResponse({ results: { channels: [{ alternatives: [{ transcript: '' }] }] } }),
+    fetchImpl: async () =>
+      jsonResponse({ results: { channels: [{ alternatives: [{ transcript: '' }] }] } }),
   })
 
-  await expect(
-    transcriber.transcribe({ audio: new Uint8Array(), contentType: 'audio/mp4' }),
-  ).rejects.toThrow('no transcript')
+  const failure = transcriber.transcribe({ audio: new Uint8Array(), contentType: 'audio/mp4' })
+  await expect(failure).rejects.toBeInstanceOf(SpeechNotRecognizedError)
+  await expect(failure).rejects.not.toBeInstanceOf(DeepgramResponseError)
+})
+
+test('a structurally unexpected 200 stays a provider fault for Russian too', async () => {
+  const transcriber = createDeepgramNova2Transcriber({
+    apiKey: 'k',
+    fetchImpl: async () => jsonResponse({ results: { channels: [{ alternatives: null }] } }),
+  })
+
+  const failure = transcriber.transcribe({ audio: new Uint8Array(), contentType: 'audio/mp4' })
+  await expect(failure).rejects.toBeInstanceOf(DeepgramResponseError)
+  await expect(failure).rejects.not.toBeInstanceOf(SpeechNotRecognizedError)
 })

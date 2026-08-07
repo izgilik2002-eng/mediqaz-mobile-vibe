@@ -5,6 +5,7 @@ import { assertMayRecord, requireSpecialty, type ConsultationDoctor } from '../d
 import {
   ConsultationFailure,
   RecordingTooLongError,
+  SpeechNotRecognizedError,
   TranscriptionTimedOutError,
 } from '../domain/errors'
 import { MedCardParseError, parseMedCard } from '../domain/med-card'
@@ -214,11 +215,12 @@ export function createConsultationsService({
           contentType: input.contentType,
         })
       } catch (cause) {
-        // Three genuinely different situations, three answers. A recording the
+        // Four genuinely different situations, four answers. A recording the
         // provider refuses for length fails identically on every retry; a
         // provider that was merely slow usually succeeds on the next attempt,
-        // and telling that doctor to shorten the visit would send them to fix
-        // something that was never wrong.
+        // and telling either of those doctors to shorten the visit would send
+        // them to fix something that was never wrong. A recording that simply
+        // carried no speech is the doctor's to fix; anything else is ours.
         const reason = failureReasonFor(cause)
 
         await appointments.markFailed({ appointmentId: input.appointmentId, reason })
@@ -336,6 +338,7 @@ export function createConsultationsService({
   function failureReasonFor(cause: unknown) {
     if (cause instanceof RecordingTooLongError) return 'recording_too_long' as const
     if (cause instanceof TranscriptionTimedOutError) return 'transcription_timed_out' as const
+    if (cause instanceof SpeechNotRecognizedError) return 'speech_not_recognized' as const
     return 'audio_transcription_failed' as const
   }
 
@@ -345,6 +348,8 @@ export function createConsultationsService({
         return 'The recording is longer than the transcription provider accepts'
       case 'transcription_timed_out':
         return 'The transcription provider did not answer in time'
+      case 'speech_not_recognized':
+        return 'The provider recognized no speech in the recording'
       default:
         return 'Could not transcribe the recording'
     }

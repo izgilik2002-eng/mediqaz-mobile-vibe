@@ -1,4 +1,5 @@
 import type { AudioTranscriber, AudioTranscription, FetchLike } from '../application/ports'
+import { readDeepgramTranscription } from './deepgram-response'
 
 const listenEndpoint = 'https://api.deepgram.com/v1/listen'
 
@@ -30,13 +31,6 @@ const queryParams = new URLSearchParams({
   punctuate: 'true',
 }).toString()
 
-type DeepgramPrerecordedResponse = {
-  metadata?: { duration?: unknown }
-  results?: {
-    channels?: Array<{ alternatives?: Array<{ transcript?: unknown }> }>
-  }
-}
-
 export function createDeepgramNova2Transcriber({
   apiKey,
   fetchImpl = fetch,
@@ -50,6 +44,7 @@ export function createDeepgramNova2Transcriber({
 }): AudioTranscriber {
   return {
     async transcribe({ audio, contentType }): Promise<AudioTranscription> {
+      const startedAt = Date.now()
       const response = await fetchImpl(`${listenEndpoint}?${queryParams}`, {
         method: 'POST',
         headers: {
@@ -66,20 +61,16 @@ export function createDeepgramNova2Transcriber({
         throw new Error(`Deepgram transcription failed with status ${response.status}`)
       }
 
-      const payload = (await response.json()) as DeepgramPrerecordedResponse
-      const transcript = payload.results?.channels?.[0]?.alternatives?.[0]?.transcript
-
-      if (typeof transcript !== 'string' || transcript.trim() === '') {
-        throw new Error('Deepgram transcription response contained no transcript')
-      }
-
-      const duration = payload.metadata?.duration
-      const durationSeconds =
-        typeof duration === 'number' && Number.isFinite(duration) && duration >= 0
-          ? Math.round(duration)
-          : 0
-
-      return { transcript, durationSeconds }
+      // Shared with the Whisper adapter. Russian is the language most
+      // consultations are recorded in, so a silent visit here has to produce
+      // the same "no speech recognized" answer it produces for Kazakh — not a
+      // generic provider failure telling the doctor to try again.
+      return readDeepgramTranscription(response, {
+        model: 'nova-2',
+        language: 'ru',
+        startedAt,
+        tag: 'nova2',
+      })
     },
   }
 }
