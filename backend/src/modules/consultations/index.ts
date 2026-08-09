@@ -11,7 +11,7 @@ import type {
   TranscriptionRouter,
 } from './application/ports'
 import { createPrismaAppointmentStore } from './infrastructure/appointments-repository'
-import { createDeepgramTranscriptionRouter } from './infrastructure/transcription-router'
+import { createTranscriptionRouter } from './infrastructure/transcription-router'
 import { createDeepgramGrantIssuer } from './infrastructure/deepgram-grants'
 import { createGroqCompletionClient } from './infrastructure/groq-completions'
 import { createPrismaMisDeliveryCodeStore } from './infrastructure/mis-delivery-code-repository'
@@ -53,9 +53,10 @@ export function createConsultationsModule({
       createDeepgramGrantIssuer({ apiKey: requireProviderKey(env, 'DEEPGRAM_API_KEY') }),
     transcription:
       transcription ??
-      createDeepgramTranscriptionRouter({
-        apiKey: requireProviderKey(env, 'DEEPGRAM_API_KEY'),
-        whisperModel: env.DEEPGRAM_WHISPER_MODEL || undefined,
+      createTranscriptionRouter({
+        deepgramApiKey: requireProviderKey(env, 'DEEPGRAM_API_KEY'),
+        openAiApiKey: requireProviderKey(env, 'OPENAI_API_KEY'),
+        openAiModel: env.OPENAI_TRANSCRIBE_MODEL || undefined,
         maxAudioSeconds: env.TRANSCRIPTION_MAX_AUDIO_SECONDS,
       }),
     // Unlike the transcription and completion providers, delivery is optional:
@@ -98,7 +99,10 @@ function createDeliveryPublisher(env: AppEnv): MedCardDeliveryPublisher | undefi
   })
 }
 
-function requireProviderKey(env: AppEnv, key: 'DEEPGRAM_API_KEY' | 'GROQ_API_KEY') {
+function requireProviderKey(
+  env: AppEnv,
+  key: 'DEEPGRAM_API_KEY' | 'OPENAI_API_KEY' | 'GROQ_API_KEY',
+) {
   const value = env[key]
   if (value) return value
 

@@ -104,14 +104,24 @@ const envSchema = z.object({
   // Speech-to-text and med-card generation. Backend-only secrets: they must
   // never reach the mobile bundle.
   DEEPGRAM_API_KEY: optionalStringSchema,
+  // Kazakh and auto-detect only. Russian keeps streaming through Deepgram, so
+  // both provider keys are required together rather than one replacing the
+  // other.
+  OPENAI_API_KEY: optionalStringSchema,
   GROQ_API_KEY: optionalStringSchema,
   TRANSCRIPTION_GRANT_TTL_SECONDS: z.coerce.number().int().positive().max(3_600).default(300),
   // Only bounds the languages served by a whole-file provider; Russian streams
-  // through a model with no such cap. Deepgram's own docs disagree on whether
-  // Whisper's budget is 10 or 20 minutes, so this starts low and moves after
-  // measurement rather than trusting either number.
+  // through a model with no such cap. OpenAI refuses anything past 25MB, and
+  // `gpt-4o-transcribe` reports no length of its own, so this is enforced by
+  // the client's pre-upload check and the request size limit rather than after
+  // transcription.
   TRANSCRIPTION_MAX_AUDIO_SECONDS: z.coerce.number().int().positive().max(7_200).default(600),
+  // Left wired for a rollback to Deepgram Whisper on Kazakh; unused while the
+  // router points that language at OpenAI.
   DEEPGRAM_WHISPER_MODEL: optionalStringSchema,
+  // The same lever for the current Kazakh provider: changing the model is an
+  // env change, not a deploy.
+  OPENAI_TRANSCRIBE_MODEL: optionalStringSchema,
   GROQ_MAX_CONCURRENT: z.coerce.number().int().positive().max(16).default(1),
   // A full consultation transcript is far larger than an auth payload; Cyrillic
   // costs two bytes per character, so the limit is sized for the contract cap.

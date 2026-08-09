@@ -357,17 +357,33 @@ describe('consultation provider configuration', () => {
     expect(() => createApp({ env, prisma: {} as DbClient })).not.toThrow()
   })
 
-  test('accepts a production API once both provider keys are set', () => {
+  test('accepts a production API once every provider key is set', () => {
     expect(() =>
       createApp({
         env: {
           ...env,
           NODE_ENV: 'production',
           DEEPGRAM_API_KEY: 'deepgram-key',
+          OPENAI_API_KEY: 'openai-key',
           GROQ_API_KEY: 'groq-key',
         },
         prisma: {} as DbClient,
       }),
     ).not.toThrow()
+  })
+
+  test('a production API is refused when only one transcription provider is configured', () => {
+    // The two transcription keys are not alternatives: Deepgram serves Russian
+    // and OpenAI serves Kazakh and auto-detect. Booting with one of them would
+    // leave a language that fails on the doctor's first recording, which is
+    // exactly what composing at startup exists to prevent.
+    for (const configured of ['DEEPGRAM_API_KEY', 'OPENAI_API_KEY'] as const) {
+      expect(() =>
+        createApp({
+          env: { ...env, NODE_ENV: 'production', GROQ_API_KEY: 'groq-key', [configured]: 'key' },
+          prisma: {} as DbClient,
+        }),
+      ).toThrow('required to serve consultations in production')
+    }
   })
 })

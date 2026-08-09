@@ -1,5 +1,6 @@
 import { SpeechNotRecognizedError } from '../domain/errors'
 import type { AudioTranscription } from '../application/ports'
+import { languageTagForLog } from './transcription-logging'
 
 /**
  * The provider answered, but the body is not the pre-recorded shape we know how
@@ -26,21 +27,6 @@ type DeepgramPrerecordedBody = {
       alternatives?: Array<{ transcript?: unknown }>
     }>
   }
-}
-
-/**
- * A BCP-47-ish tag and nothing else. `detected_language` is the one value in
- * the response we echo into a log line, and it arrives typed `unknown` from a
- * third party, so it is matched against a shape rather than trusted: anything
- * else is reported as unexpected instead of being printed. Without this, a
- * provider change could turn the field into free text and quietly put
- * consultation speech into the logs.
- */
-const LANGUAGE_TAG = /^[a-zA-Z]{2,3}(-[a-zA-Z0-9]{2,8})*$/
-
-function languageTagForLog(value: unknown) {
-  if (typeof value !== 'string') return '(absent)'
-  return LANGUAGE_TAG.test(value) ? value : '(unexpected)'
 }
 
 /**

@@ -63,10 +63,11 @@ Use the private `DATABASE_URL`, not `DATABASE_PUBLIC_URL`: the backend and the d
 NODE_ENV=production
 JWT_SECRET=<64+ hex characters>
 DEEPGRAM_API_KEY=<Deepgram key with Member rights>
+OPENAI_API_KEY=<OpenAI key>
 GROQ_API_KEY=<Groq key>
 ```
 
-Generate the signing secret with `openssl rand -hex 32`. Production rejects anything that is not at least 64 hex characters, so a human-readable passphrase fails at boot rather than silently weakening sessions. `DEEPGRAM_API_KEY` and `GROQ_API_KEY` are required in production: the API refuses to start without them, because a MediQaz deployment where a doctor presses record and nothing happens is worse than a failed deploy.
+Generate the signing secret with `openssl rand -hex 32`. Production rejects anything that is not at least 64 hex characters, so a human-readable passphrase fails at boot rather than silently weakening sessions. `DEEPGRAM_API_KEY`, `OPENAI_API_KEY`, and `GROQ_API_KEY` are all required in production: the API refuses to start without them, because a MediQaz deployment where a doctor presses record and nothing happens is worse than a failed deploy. The two transcription keys are not alternatives — Deepgram serves Russian and OpenAI serves Kazakh and auto-detect, so a deployment missing either one has a language that cannot be transcribed.
 
 **Browser auth and CORS:**
 
@@ -134,12 +135,15 @@ CONSULTATION_RATE_LIMIT_WINDOW_SECONDS=60
 GROQ_MAX_CONCURRENT=1
 TRANSCRIPTION_GRANT_TTL_SECONDS=300
 TRANSCRIPTION_MAX_AUDIO_SECONDS=600
+OPENAI_TRANSCRIBE_MODEL=
 DEEPGRAM_WHISPER_MODEL=
 ```
 
-`TRANSCRIPTION_MAX_AUDIO_SECONDS` bounds only the languages served by a whole-file provider — Kazakh and auto-detect, which run on Deepgram's Whisper. Russian streams through Nova-2 and has no such cap, so raising this never affects Russian consultations. Deepgram's own docs give both 10 and 20 minutes for Whisper's processing budget, so the default is the conservative one; raise it after measuring on real recordings. Past the limit the API answers `413 CONSULTATION_RECORDING_TOO_LONG` and the app tells the doctor to record a shorter visit — recordings are never split, because half a consultation produces half a med card.
+`TRANSCRIPTION_MAX_AUDIO_SECONDS` bounds only the languages served by a whole-file provider — Kazakh and auto-detect, which run on OpenAI's `gpt-4o-transcribe`. Russian streams through Nova-2 and has no such cap, so raising this never affects Russian consultations. That model reports no length of its own, so the cap is enforced by the app before upload and by `CONSULTATION_AUDIO_BODY_LIMIT_BYTES`; OpenAI itself refuses anything past 25MB with a 413. Past either limit the API answers `413 CONSULTATION_RECORDING_TOO_LONG` and the app tells the doctor to record a shorter visit — recordings are never split, because half a consultation produces half a med card.
 
-Which model serves which language lives in `backend/src/modules/consultations/infrastructure/transcription-router.ts` and nowhere else. Replacing Deepgram for one language is a new adapter plus a row in that table; no route, service, or client changes.
+`OPENAI_TRANSCRIBE_MODEL` overrides the model for those two languages only; Russian is unreachable from it. `DEEPGRAM_WHISPER_MODEL` is read only after a rollback of Kazakh to Deepgram Whisper and does nothing today.
+
+Which model serves which language lives in `backend/src/modules/consultations/infrastructure/transcription-router.ts` and nowhere else. Moving a language to another provider is a new adapter plus a row in that table; no route, service, or client changes. `deepgram-whisper.ts` stays in the tree, with its tests, as the rollback path for Kazakh.
 
 ## Migrations
 
@@ -215,7 +219,7 @@ This is the practical reason to keep migrations additive: adding a nullable colu
 
 - A failed migration releasing a broken API — the pre-deploy command fails the deploy first.
 - A deployment taking traffic without a database — `/health/ready` checks the connection.
-- Production booting without consultation providers — the API refuses to compose without `DEEPGRAM_API_KEY` and `GROQ_API_KEY`.
+- Production booting without consultation providers — the API refuses to compose without `DEEPGRAM_API_KEY`, `OPENAI_API_KEY`, and `GROQ_API_KEY`.
 - A weak or placeholder signing secret — production rejects anything that is not 64+ hex characters.
 - Insecure cookies or plaintext origins in production — env validation refuses `COOKIE_SECURE=false` and non-HTTPS `CORS_ORIGINS`.
 - An unapproved account consuming paid provider quota — the consultation use cases refuse an account no administrator has approved.

@@ -135,6 +135,20 @@
 - Do not stage, commit, amend, rebase, reset, stash, push, delete files, or change remotes unless explicitly authorized by the user or the confirmed bootstrap workflow.
 - Keep diffs focused and avoid unrelated formatting churn.
 
+## Open Tasks After Session 2026-08-07
+
+Правило: никогда не коммитить и не пушить ничего из этого списка (или любую другую работу) без явной команды пользователя — см. также `Git And Remote Policy` и `Safety And Workspace Hygiene`.
+
+- [ ] **Блокер деплоя:** `OPENAI_API_KEY` ещё НЕ выставлен в Railway env. Казахский и автоопределение переведены на OpenAI `gpt-4o-transcribe`, и продакшен-API теперь отказывается стартовать без этого ключа. Выставить до следующего деплоя.
+- [ ] Контрольная запись на казахском языке для финальной проверки бага kk→ru — не сделано. Теперь проверяет OpenAI, а не Deepgram Whisper; в логах смотреть `[openai-stt] provider response` → `detectedLanguage`.
+- [ ] Ротация ключей: Deepgram и Groq засвечивались на скриншотах — нужно перевыпустить.
+- [x] ~~`DEEPGRAM_WHISPER_MODEL=whisper-large`~~ — переменная стоит в Railway (подтверждено 2026-08-09), но больше не читается: казахский ушёл на OpenAI. Остаётся только как путь отката.
+- [ ] F2 — покрыть тестами остальные 4 из 5 логирующих веток на отсутствие речи в логах (`deepgram-response.ts`, `readDeepgramTranscription`): код чист, но тест есть только на одной ветке. То же самое для `openai-transcribe.ts`.
+- [ ] F4 — уточнить комментарий про `detected_language` vs content-type (minor).
+- [ ] F5 — унифицировать тип `alternatives` в логах (`number | '(absent)'` vs `number | null`) (minor).
+- [ ] `durationSeconds` для казахского теперь всегда 0: `gpt-4o-transcribe` не возвращает длину (`verbose_json` на этой модели недоступен). Длительность приёма перестала сохраняться для kk/multi — решить, нужна ли она, и если да, мерить её на клиенте.
+- [ ] Тест маппинга HTTP-статусов 413/504 в роутах (предсуществующий пробел).
+
 ## Completion Report
 
 - Report the outcome, what changed, why, and the root cause or affected layers when useful.
