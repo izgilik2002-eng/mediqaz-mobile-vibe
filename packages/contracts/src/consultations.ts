@@ -72,6 +72,7 @@ export const MED_CARD_SECTIONS = [
   { key: 'объективно', label: 'Объективно' },
   { key: 'диагноз', label: 'Диагноз' },
   { key: 'назначения', label: 'Назначения' },
+  { key: 'красные_флаги', label: 'Когда обращаться срочно' },
   { key: 'рекомендации', label: 'Рекомендации' },
   { key: 'следующий_прием', label: 'Следующий приём' },
 ] as const
@@ -87,6 +88,39 @@ const diagnosisSectionSchema = sectionSchema.extend({
   мкб10: z.string(),
 })
 
+/**
+ * One prescribed medication. Every field beyond the drug name is nullable, not
+ * omitted or defaulted to an empty string: a doctor saying nothing about dosing
+ * has to stay visibly distinct from the model inventing "as needed", because a
+ * condition like "only above 38.5°" silently becoming "" reads as unconditional
+ * — that is a different prescription, not a simplified one.
+ */
+const prescriptionItemSchema = z.object({
+  препарат: z.string(),
+  доза: z.string().nullable(),
+  кратность: z.string().nullable(),
+  длительность: z.string().nullable(),
+  условие_приема: z.string().nullable(),
+  цитата: z.string(),
+})
+
+const prescriptionsSectionSchema = z.object({
+  items: z.array(prescriptionItemSchema),
+})
+
+/**
+ * When to call an ambulance or seek urgent care. `текст` is nullable rather
+ * than backfilled with the usual empty-section placeholder: silence on this
+ * question must not read the same as a checked-and-clear answer, so a doctor
+ * skimming the card cannot mistake an unasked question for an answered one.
+ * The model must never invent red flags on its own — only what the doctor
+ * actually said belongs here.
+ */
+const redFlagsSectionSchema = z.object({
+  текст: z.string().nullable(),
+  цитата: z.string(),
+})
+
 export const visitTypeSchema = z.enum(['Первичный', 'Повторный'])
 
 export const medCardSchema = z.object({
@@ -95,7 +129,8 @@ export const medCardSchema = z.object({
   анамнез: sectionSchema,
   объективно: sectionSchema,
   диагноз: diagnosisSectionSchema,
-  назначения: sectionSchema,
+  назначения: prescriptionsSectionSchema,
+  красные_флаги: redFlagsSectionSchema,
   рекомендации: sectionSchema,
   следующий_прием: sectionSchema,
 })
@@ -247,6 +282,7 @@ export type TranscriptionLanguage = z.infer<typeof transcriptionLanguageSchema>
 export type MedCardSectionKey = (typeof MED_CARD_SECTIONS)[number]['key']
 export type VisitType = z.infer<typeof visitTypeSchema>
 export type MedCard = z.infer<typeof medCardSchema>
+export type PrescriptionItem = z.infer<typeof prescriptionItemSchema>
 export type WordTimestamp = z.infer<typeof wordTimestampSchema>
 export type TranscriptionTokenResponse = z.infer<typeof transcriptionTokenResponseSchema>
 export type GenerateMedCardRequest = z.infer<typeof generateMedCardRequestSchema>

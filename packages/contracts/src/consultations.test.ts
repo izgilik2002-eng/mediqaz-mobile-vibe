@@ -19,7 +19,19 @@ const medCard = {
   анамнез: { текст: 'Не указано в ходе приёма', цитата: '' },
   объективно: { текст: 'Зев гиперемирован', цитата: 'зев красный' },
   диагноз: { текст: 'Острый фарингит', мкб10: 'J02.9', цитата: 'похоже на фарингит' },
-  назначения: { текст: 'Полоскание 4 раза в день, 5 дней', цитата: 'полоскать четыре раза' },
+  назначения: {
+    items: [
+      {
+        препарат: 'Парацетамол',
+        доза: '500 мг',
+        кратность: null,
+        длительность: null,
+        условие_приема: 'только при температуре выше 38.5',
+        цитата: 'парацетамол если температура выше 38.5',
+      },
+    ],
+  },
+  красные_флаги: { текст: null, цитата: '' },
   рекомендации: { текст: 'Обильное питьё', цитата: 'пейте больше' },
   следующий_прием: { текст: 'Через 5 дней', цитата: 'приходите через пять дней' },
 } as const
@@ -43,6 +55,47 @@ describe('consultation contracts', () => {
         диагноз: { текст: 'Острый фарингит', цитата: 'фарингит' },
       }),
     ).toThrow()
+  })
+
+  test('a prescription requires a drug name, but every other field is explicitly nullable', () => {
+    expect(() =>
+      medCardSchema.parse({
+        ...medCard,
+        назначения: { items: [{ ...medCard.назначения.items[0], препарат: undefined }] },
+      }),
+    ).toThrow()
+
+    // Nullable, not optional: the model has to say "not specified" rather than
+    // leave the field out, so a doctor reading the card cannot tell a real gap
+    // apart from a rendering bug.
+    expect(
+      medCardSchema.parse({
+        ...medCard,
+        назначения: {
+          items: [
+            {
+              препарат: 'Ибупрофен',
+              доза: null,
+              кратность: null,
+              длительность: null,
+              условие_приема: null,
+              цитата: '',
+            },
+          ],
+        },
+      }).назначения.items[0]?.доза,
+    ).toBeNull()
+  })
+
+  test('красные_флаги stays a mandatory field even though its text may be null', () => {
+    // Present-but-null is a different, weaker claim than absent: absent could
+    // mean the model forgot to ask, null means it asked and nothing came back.
+    expect(
+      medCardSchema.parse({ ...medCard, красные_флаги: { текст: null, цитата: '' } }).красные_флаги.текст,
+    ).toBeNull()
+
+    const { красные_флаги: _omitted, ...withoutRedFlags } = medCard
+    expect(() => medCardSchema.parse(withoutRedFlags)).toThrow()
   })
 
   test('visit type is nullable because the model must not guess it', () => {

@@ -80,9 +80,17 @@
     "objective": "Объективно",
     "diagnosis": "Диагноз",
     "prescriptions": "Назначения",
+    "redFlags": "Когда обращаться срочно",
     "recommendations": "Рекомендации",
     "nextVisit": "Следующий приём",
-    "icd10": "МКБ-10"
+    "icd10": "МКБ-10",
+    "dose": "Доза",
+    "frequency": "Кратность приёма",
+    "duration": "Длительность",
+    "condition": "Условие приёма",
+    "notSpecified": "Не уточнено врачом",
+    "noPrescriptions": "Назначений не было",
+    "redFlagsNotMentioned": "Врач не называл признаков для срочного обращения"
   },
   "profile": {
     "eyebrow": "Аккаунт",

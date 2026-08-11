@@ -33,6 +33,9 @@ export const TEST_IDS = {
       sendToMisButton: 'appointment.medcard-send-to-mis-button',
       deliveryStatus: 'appointment.medcard-delivery-status',
       deliveryError: 'appointment.medcard-delivery-error',
+      prescription: 'appointment.medcard-prescription',
+      noPrescriptions: 'appointment.medcard-no-prescriptions',
+      redFlagsMissing: 'appointment.medcard-red-flags-missing',
     },
   },
   profile: {

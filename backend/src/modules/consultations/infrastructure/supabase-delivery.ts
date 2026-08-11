@@ -1,4 +1,62 @@
+import { MED_CARD_EMPTY_SECTION, type MedCard, type PrescriptionItem } from '@mediqaz/contracts'
+
 import type { FetchLike, MedCardDeliveryPublisher } from '../application/ports'
+
+/**
+ * Flattens the structured med card into the shape the browser extension
+ * understands: seven flat sections, each `{ текст, цитата }`, диагноз also
+ * carrying мкб10. The extension is a separate, unmodified codebase — its own
+ * repository, its own release — and its renderer reads exactly that shape by
+ * key name. A field added to the card since the extension shipped cannot
+ * reach it by adding a new top-level key: the extension's renderer does not
+ * know that key exists and will not look at it. It can only arrive by folding
+ * into a section the extension already renders.
+ *
+ * Nothing here is dropped, only reshaped:
+ * - назначения.items becomes one line per drug — "Препарат — доза,
+ *   кратность, длительность, условие приёма" — with every null field simply
+ *   left out of that line rather than printed as the word "null".
+ * - красные_флаги, which the extension has no key for at all, is appended to
+ *   the end of рекомендации.текст under a "СРОЧНО ОБРАТИТЬСЯ ПРИ:" heading.
+ *   If the doctor named no red flags, рекомендации is sent unchanged.
+ */
+export function toExtensionMedCard(medCard: MedCard) {
+  const prescriptionsText = medCard.назначения.items.length
+    ? medCard.назначения.items.map(formatPrescriptionLine).join('\n')
+    : MED_CARD_EMPTY_SECTION
+
+  // Exactly one citation, never joined: the extension's Linked Evidence
+  // (sidepanel.js findAudioTimestamp) matches only a prefix of a few words to
+  // find where a quote starts, then plays until a point derived from the
+  // FULL search string's word count. A joined "цитата1 / цитата2" would find
+  // the right start — cитата1's — but compute an end offset stretched by
+  // цитата2's length, landing the playback somewhere else in the recording
+  // while the button still looks like it points at cитата1.
+  const prescriptionsQuote = medCard.назначения.items.find((item) => item.цитата !== '')?.цитата ?? ''
+
+  const redFlagsText = medCard.красные_флаги.текст
+  const recommendationsText = redFlagsText
+    ? `${medCard.рекомендации.текст}\n\nСРОЧНО ОБРАТИТЬСЯ ПРИ: ${redFlagsText}`
+    : medCard.рекомендации.текст
+
+  return {
+    тип_приема: medCard.тип_приема,
+    жалобы: medCard.жалобы,
+    анамнез: medCard.анамнез,
+    объективно: medCard.объективно,
+    диагноз: medCard.диагноз,
+    назначения: { текст: prescriptionsText, цитата: prescriptionsQuote },
+    рекомендации: { текст: recommendationsText, цитата: medCard.рекомендации.цитата },
+    следующий_прием: medCard.следующий_прием,
+  }
+}
+
+function formatPrescriptionLine(item: PrescriptionItem) {
+  const details = [item.доза, item.кратность, item.длительность, item.условие_приема].filter(
+    (field): field is string => field !== null,
+  )
+  return details.length ? `${item.препарат} — ${details.join(', ')}` : item.препарат
+}
 
 /**
  * Writes the med card into the Supabase table the browser extension claims
@@ -48,7 +106,7 @@ export function createSupabaseMedCardDeliveryPublisher({
             doctor_code: doctorCode,
             appointment_id: appointmentId,
             patient_name: patientName ?? null,
-            transcript_json: medCard,
+            transcript_json: toExtensionMedCard(medCard),
             // Sent explicitly: the column default only applies to an INSERT, so
             // a re-send would otherwise inherit the original row's expiry and
             // could be swept moments after the doctor asked for it again.

@@ -10,7 +10,19 @@ const completeCard = {
   анамнез: { текст: 'Болеет три дня', цитата: 'три дня' },
   объективно: { текст: 'Зев гиперемирован', цитата: 'зев красный' },
   диагноз: { текст: 'Острый фарингит', мкб10: 'J02.9', цитата: 'фарингит' },
-  назначения: { текст: 'Полоскание 5 дней', цитата: 'полоскать' },
+  назначения: {
+    items: [
+      {
+        препарат: 'Парацетамол',
+        доза: '500 мг',
+        кратность: 'при необходимости',
+        длительность: null,
+        условие_приема: 'только при температуре выше 38.5',
+        цитата: 'парацетамол если температура выше 38.5',
+      },
+    ],
+  },
+  красные_флаги: { текст: 'Затруднённое дыхание, температура выше 39.5', цитата: 'если тяжело дышать — сразу скорую' },
   рекомендации: { текст: 'Обильное питьё', цитата: 'пить больше' },
   следующий_прием: { текст: 'Через 5 дней', цитата: 'через пять дней' },
 }
@@ -54,6 +66,92 @@ test('keeps a diagnosis without an ICD-10 code parseable but visibly empty', () 
   )
 
   expect(card.диагноз.мкб10).toBe('')
+})
+
+test('preserves a dosing condition exactly, without simplifying it away', () => {
+  const card = parseMedCard(JSON.stringify(completeCard))
+
+  // The whole point of structuring назначения: "Парацетамол при температуре
+  // выше 38.5" and "Парацетамол" are different prescriptions. Losing this
+  // field silently would change what the doctor ordered.
+  expect(card.назначения.items).toEqual([
+    {
+      препарат: 'Парацетамол',
+      доза: '500 мг',
+      кратность: 'при необходимости',
+      длительность: null,
+      условие_приема: 'только при температуре выше 38.5',
+      цитата: 'парацетамол если температура выше 38.5',
+    },
+  ])
+})
+
+test('an unspecified prescription field becomes null, never an empty string or a guess', () => {
+  const card = parseMedCard(
+    JSON.stringify({
+      ...completeCard,
+      назначения: {
+        items: [
+          { препарат: 'Ибупрофен', доза: '', кратность: null, длительность: undefined },
+        ],
+      },
+    }),
+  )
+
+  // Missing is missing. An empty string here would be indistinguishable from
+  // "the doctor said to take it with nothing" — a different, wrong claim.
+  expect(card.назначения.items).toEqual([
+    {
+      препарат: 'Ибупрофен',
+      доза: null,
+      кратность: null,
+      длительность: null,
+      условие_приема: null,
+      цитата: '',
+    },
+  ])
+})
+
+test('a prescription entry with no drug name is dropped rather than kept as a blank row', () => {
+  const card = parseMedCard(
+    JSON.stringify({
+      ...completeCard,
+      назначения: {
+        items: [
+          { препарат: '', доза: '500 мг' },
+          { доза: '10 мг' },
+          completeCard.назначения.items[0],
+        ],
+      },
+    }),
+  )
+
+  expect(card.назначения.items).toHaveLength(1)
+  expect(card.назначения.items[0]?.препарат).toBe('Парацетамол')
+})
+
+test('назначения omitted by the model backfills to an empty list, not a missing field', () => {
+  const { назначения: _omitted, ...partial } = completeCard
+  const card = parseMedCard(JSON.stringify(partial))
+
+  expect(card.назначения.items).toEqual([])
+})
+
+test('a red flag the doctor stated is carried through verbatim', () => {
+  const card = parseMedCard(JSON.stringify(completeCard))
+
+  expect(card.красные_флаги.текст).toBe('Затруднённое дыхание, температура выше 39.5')
+  expect(card.красные_флаги.цитата).toBe('если тяжело дышать — сразу скорую')
+})
+
+test('красные_флаги the doctor never mentioned backfills to null, not the empty-section placeholder', () => {
+  const { красные_флаги: _omitted, ...partial } = completeCard
+  const card = parseMedCard(JSON.stringify(partial))
+
+  // Must not become MED_CARD_EMPTY_SECTION: that wording reads as a checked
+  // and clear answer, a different, stronger claim than "not asked".
+  expect(card.красные_флаги.текст).toBeNull()
+  expect(card.красные_флаги.цитата).toBe('')
 })
 
 test('falls back to null when the model guesses an unknown visit type', () => {

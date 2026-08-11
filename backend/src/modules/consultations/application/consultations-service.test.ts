@@ -27,7 +27,19 @@ const medCardJson = JSON.stringify({
   анамнез: { текст: 'Три дня', цитата: 'три дня' },
   объективно: { текст: 'Зев гиперемирован', цитата: 'зев красный' },
   диагноз: { текст: 'Острый фарингит', мкб10: 'J02.9', цитата: 'фарингит' },
-  назначения: { текст: 'Полоскание', цитата: 'полоскать' },
+  назначения: {
+    items: [
+      {
+        препарат: 'Парацетамол',
+        доза: '500 мг',
+        кратность: null,
+        длительность: null,
+        условие_приема: 'только при температуре выше 38.5',
+        цитата: 'парацетамол если температура выше 38.5',
+      },
+    ],
+  },
+  красные_флаги: { текст: null, цитата: '' },
   рекомендации: { текст: 'Питьё', цитата: 'пить' },
   следующий_прием: { текст: 'Через 5 дней', цитата: 'через пять' },
 })
@@ -287,6 +299,19 @@ test('stores the transcript and duration before the model runs', async () => {
   ])
   expect(result.medCard.диагноз.мкб10).toBe('J02.9')
   expect(result.appointment.status).toBe('completed')
+  // The end-to-end safety property this pipeline exists to protect: a dosing
+  // condition the model returned must survive completion parsing and land in
+  // the stored card unchanged, not silently dropped or generalized.
+  expect(result.medCard.назначения.items).toEqual([
+    {
+      препарат: 'Парацетамол',
+      доза: '500 мг',
+      кратность: null,
+      длительность: null,
+      условие_приема: 'только при температуре выше 38.5',
+      цитата: 'парацетамол если температура выше 38.5',
+    },
+  ])
 })
 
 test('marks the consultation failed when the model is unavailable', async () => {

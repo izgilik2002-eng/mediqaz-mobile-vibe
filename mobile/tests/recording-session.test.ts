@@ -16,7 +16,8 @@ const medCard: MedCard = {
   анамнез: section,
   объективно: section,
   диагноз: { ...section, мкб10: 'J02.9' },
-  назначения: section,
+  назначения: { items: [] },
+  красные_флаги: { текст: null, цитата: '' },
   рекомендации: section,
   следующий_прием: section,
 };

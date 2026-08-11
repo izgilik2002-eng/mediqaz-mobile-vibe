@@ -1,8 +1,8 @@
 import { expect, test } from 'bun:test'
 
-import type { MedCard } from '@mediqaz/contracts'
+import { MED_CARD_EMPTY_SECTION, type MedCard } from '@mediqaz/contracts'
 
-import { createSupabaseMedCardDeliveryPublisher } from './supabase-delivery'
+import { createSupabaseMedCardDeliveryPublisher, toExtensionMedCard } from './supabase-delivery'
 
 const medCard = {
   тип_приема: 'Первичный',
@@ -10,7 +10,19 @@ const medCard = {
   анамнез: { текст: 'Три дня', цитата: 'три дня' },
   объективно: { текст: 'Зев гиперемирован', цитата: 'зев красный' },
   диагноз: { текст: 'Острый фарингит', мкб10: 'J02.9', цитата: 'фарингит' },
-  назначения: { текст: 'Полоскание', цитата: 'полоскать' },
+  назначения: {
+    items: [
+      {
+        препарат: 'Полоскание фурацилином',
+        доза: null,
+        кратность: '4 раза в день',
+        длительность: '5 дней',
+        условие_приема: null,
+        цитата: 'полоскать',
+      },
+    ],
+  },
+  красные_флаги: { текст: null, цитата: '' },
   рекомендации: { текст: 'Питьё', цитата: 'пить' },
   следующий_прием: { текст: 'Через 5 дней', цитата: 'через пять' },
 } satisfies MedCard
@@ -64,7 +76,25 @@ test('sends the row the extension claims, with an explicit expiry', async () => 
     doctor_code: 'doctor-code-1',
     appointment_id: '00000000-0000-4000-8000-000000000001',
     patient_name: 'Иванов И.И.',
-    transcript_json: medCard,
+    // Not the raw structured card: the extension is a separate, unmodified
+    // codebase that only understands the flat seven-section shape, so what
+    // actually reaches PostgREST must already be reshaped for it. Written out
+    // by hand rather than via toExtensionMedCard(medCard), so a bug shared
+    // between this call site and the one inside publish() cannot hide behind
+    // both sides agreeing with each other.
+    transcript_json: {
+      тип_приема: 'Первичный',
+      жалобы: { текст: 'Боль в горле', цитата: 'горло болит' },
+      анамнез: { текст: 'Три дня', цитата: 'три дня' },
+      объективно: { текст: 'Зев гиперемирован', цитата: 'зев красный' },
+      диагноз: { текст: 'Острый фарингит', мкб10: 'J02.9', цитата: 'фарингит' },
+      назначения: {
+        текст: 'Полоскание фурацилином — 4 раза в день, 5 дней',
+        цитата: 'полоскать',
+      },
+      рекомендации: { текст: 'Питьё', цитата: 'пить' },
+      следующий_прием: { текст: 'Через 5 дней', цитата: 'через пять' },
+    },
     // The column default only fires on INSERT; a re-send that omitted this
     // would keep the original row's expiry and could be swept immediately.
     expires_at: '2026-07-28T10:05:00.000Z',
@@ -94,6 +124,88 @@ test('fails when PostgREST rejects the write', async () => {
   )
 
   await expect(publisher.publish(delivery)).rejects.toThrow('status 404')
+})
+
+test('formats one prescription line per drug, joining only the fields the doctor actually gave', () => {
+  const flattened = toExtensionMedCard({
+    ...medCard,
+    назначения: {
+      items: [
+        {
+          препарат: 'Парацетамол',
+          доза: '500 мг',
+          кратность: null,
+          длительность: null,
+          условие_приема: 'только при температуре выше 38.5',
+          цитата: 'парацетамол если температура выше 38.5',
+        },
+        {
+          препарат: 'Ибупрофен',
+          доза: null,
+          кратность: null,
+          длительность: null,
+          условие_приема: null,
+          цитата: '',
+        },
+      ],
+    },
+  })
+
+  // Every unspecified field is left out of the line entirely — not printed as
+  // the word "null", which would read as if the doctor said that literally.
+  expect(flattened.назначения.текст).toBe(
+    'Парацетамол — 500 мг, только при температуре выше 38.5\nИбупрофен',
+  )
+})
+
+test('carries only the first non-blank quote, never several joined together', () => {
+  const flattened = toExtensionMedCard({
+    ...medCard,
+    назначения: {
+      items: [
+        { препарат: 'A', доза: null, кратность: null, длительность: null, условие_приема: null, цитата: '' },
+        { препарат: 'B', доза: null, кратность: null, длительность: null, условие_приема: null, цитата: 'цитата B' },
+        { препарат: 'C', доза: null, кратность: null, длительность: null, условие_приема: null, цитата: 'цитата C' },
+      ],
+    },
+  })
+
+  // The extension's Linked Evidence (sidepanel.js findAudioTimestamp) matches
+  // a word prefix to find where a quote starts, then plays until an end point
+  // derived from the FULL search string's word count. Joining "цитата B /
+  // цитата C" would still find B's start correctly but compute an end offset
+  // stretched by C's length — the button would look like it points at B and
+  // actually play somewhere else in the recording. A dropped a blank quote,
+  // so B's — the first real one — must win outright, with nothing appended.
+  expect(flattened.назначения.цитата).toBe('цитата B')
+})
+
+test('no prescriptions backfills to the same empty-section wording every other section uses', () => {
+  const flattened = toExtensionMedCard({ ...medCard, назначения: { items: [] } })
+
+  expect(flattened.назначения.текст).toBe(MED_CARD_EMPTY_SECTION)
+  expect(flattened.назначения.цитата).toBe('')
+})
+
+test('a red flag is appended to рекомендации under its own heading', () => {
+  const flattened = toExtensionMedCard({
+    ...medCard,
+    красные_флаги: { текст: 'Затруднённое дыхание', цитата: 'если тяжело дышать' },
+  })
+
+  expect(flattened.рекомендации.текст).toBe('Питьё\n\nСРОЧНО ОБРАТИТЬСЯ ПРИ: Затруднённое дыхание')
+  // рекомендации's own citation is untouched — only its текст gained content.
+  expect(flattened.рекомендации.цитата).toBe('пить')
+})
+
+test('no red flag leaves рекомендации exactly as the doctor gave it', () => {
+  const flattened = toExtensionMedCard({ ...medCard, красные_флаги: { текст: null, цитата: '' } })
+
+  expect(flattened.рекомендации.текст).toBe('Питьё')
+  // The extension has no key for this at all, so an unfolded красные_флаги
+  // would not just be redundant — it would be silently invisible to a doctor
+  // reading the panel. There must be nothing left over to lose.
+  expect(flattened).not.toHaveProperty('красные_флаги')
 })
 
 test('fails when no response arrives at all', async () => {

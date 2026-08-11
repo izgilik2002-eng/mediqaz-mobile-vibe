@@ -4,6 +4,7 @@ import {
   MED_CARD_SECTIONS,
   visitTypeSchema,
   type MedCard,
+  type PrescriptionItem,
 } from '@mediqaz/contracts'
 
 export class MedCardParseError extends Error {
@@ -61,6 +62,20 @@ function backfillSections(parsed: unknown): MedCard {
   }
 
   for (const { key } of MED_CARD_SECTIONS) {
+    if (key === 'назначения') {
+      const section = source.назначения
+      const rawItems = typeof section === 'object' && section !== null
+        ? (section as Record<string, unknown>).items
+        : undefined
+      card[key] = { items: backfillPrescriptions(rawItems) }
+      continue
+    }
+
+    if (key === 'красные_флаги') {
+      card[key] = backfillRedFlags(source.красные_флаги)
+      continue
+    }
+
     const section = source[key]
     const fields = typeof section === 'object' && section !== null
       ? (section as Record<string, unknown>)
@@ -82,6 +97,53 @@ function backfillSections(parsed: unknown): MedCard {
 
 function nonEmptyString(value: unknown) {
   return typeof value === 'string' && value.trim() !== '' ? value : undefined
+}
+
+/**
+ * Only an entry that actually names a drug counts as a prescription — one
+ * without "препарат" is the model inventing structure, not a real omission to
+ * backfill. Every other field stays `null` rather than an empty string when
+ * the model left it out, so "not specified" cannot be confused with "specified
+ * as nothing": a dosing condition silently becoming "" would read as
+ * unconditional, which is a different prescription.
+ */
+function backfillPrescriptions(value: unknown): PrescriptionItem[] {
+  if (!Array.isArray(value)) return []
+
+  const items: PrescriptionItem[] = []
+  for (const entry of value) {
+    if (typeof entry !== 'object' || entry === null) continue
+    const fields = entry as Record<string, unknown>
+    const препарат = nonEmptyString(fields.препарат)
+    if (!препарат) continue
+
+    items.push({
+      препарат,
+      доза: nonEmptyString(fields.доза) ?? null,
+      кратность: nonEmptyString(fields.кратность) ?? null,
+      длительность: nonEmptyString(fields.длительность) ?? null,
+      условие_приема: nonEmptyString(fields.условие_приема) ?? null,
+      цитата: nonEmptyString(fields.цитата) ?? '',
+    })
+  }
+  return items
+}
+
+/**
+ * `текст` backfills to `null`, not `MED_CARD_EMPTY_SECTION` like every other
+ * section: "the doctor said nothing about red flags" has to stay visibly
+ * distinct from every other section's "not discussed" placeholder, so it
+ * cannot be mistaken for a checked-and-clear answer.
+ */
+function backfillRedFlags(value: unknown): { текст: string | null; цитата: string } {
+  const fields = typeof value === 'object' && value !== null
+    ? (value as Record<string, unknown>)
+    : {}
+
+  return {
+    текст: nonEmptyString(fields.текст) ?? null,
+    цитата: nonEmptyString(fields.цитата) ?? '',
+  }
 }
 
 function firstBalancedObject(text: string) {
