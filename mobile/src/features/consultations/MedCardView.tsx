@@ -20,7 +20,7 @@ const SECTION_TRANSLATION_KEYS: Record<MedCardSectionKey, string> = {
   жалобы: 'complaints',
   анамнез: 'anamnesis',
   объективно: 'objective',
-  диагноз: 'diagnosis',
+  диагноз_врача: 'doctorDiagnosis',
   назначения: 'prescriptions',
   красные_флаги: 'redFlags',
   рекомендации: 'recommendations',
@@ -45,17 +45,43 @@ export function MedCardView({ medCard }: MedCardViewProps) {
             <PrescriptionsSection items={medCard.назначения.items} />
           ) : key === 'красные_флаги' ? (
             <RedFlagsSection text={medCard.красные_флаги.текст} />
+          ) : key === 'диагноз_врача' ? (
+            <DoctorDiagnosisSection diagnosis={medCard.диагноз_врача} />
           ) : (
-            <>
-              <Typography variant="body">{medCard[key].текст}</Typography>
-              {key === 'диагноз' && (
-                <DataRow label={t('medcard.icd10')} value={medCard.диагноз.мкб10} />
-              )}
-            </>
+            <Typography variant="body">{medCard[key].текст}</Typography>
           )}
         </SectionCard>
       ))}
     </Fragment>
+  );
+}
+
+/**
+ * The doctor's own diagnosis, rendered plainly like any other recorded finding.
+ * When nothing was stated the section says so outright rather than falling
+ * silent, because an empty card here is indistinguishable from a rendering
+ * failure — and this is the section that becomes the official entry.
+ */
+function DoctorDiagnosisSection({ diagnosis }: { diagnosis: MedCard['диагноз_врача'] }) {
+  const { t } = useTranslation();
+
+  if (diagnosis.текст === null && diagnosis.мкб10 === null) {
+    return (
+      <Typography muted testID={TEST_IDS.appointment.medCard.diagnosisMissing} variant="body">
+        {t('medcard.diagnosisNotStated')}
+      </Typography>
+    );
+  }
+
+  return (
+    <>
+      <Typography variant="body">
+        {diagnosis.текст ?? t('medcard.diagnosisCodeOnly')}
+      </Typography>
+      {diagnosis.мкб10 !== null && (
+        <DataRow label={t('medcard.icd10')} value={diagnosis.мкб10} />
+      )}
+    </>
   );
 }
 

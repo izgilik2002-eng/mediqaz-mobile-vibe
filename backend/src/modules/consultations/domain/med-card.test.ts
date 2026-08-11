@@ -9,7 +9,7 @@ const completeCard = {
   жалобы: { текст: 'Боль в горле', цитата: 'горло болит' },
   анамнез: { текст: 'Болеет три дня', цитата: 'три дня' },
   объективно: { текст: 'Зев гиперемирован', цитата: 'зев красный' },
-  диагноз: { текст: 'Острый фарингит', мкб10: 'J02.9', цитата: 'фарингит' },
+  диагноз_врача: { текст: 'Острый фарингит', мкб10: 'J02.9', цитата: 'фарингит' },
   назначения: {
     items: [
       {
@@ -30,7 +30,7 @@ const completeCard = {
 test('parses a bare JSON completion', () => {
   const card = parseMedCard(JSON.stringify(completeCard))
 
-  expect(card.диагноз.мкб10).toBe('J02.9')
+  expect(card.диагноз_врача.мкб10).toBe('J02.9')
   expect(card.тип_приема).toBe('Первичный')
 })
 
@@ -60,12 +60,60 @@ test('backfills sections the model omitted so one gap does not lose the card', (
   expect(card.жалобы.текст).toBe('Боль в горле')
 })
 
-test('keeps a diagnosis without an ICD-10 code parseable but visibly empty', () => {
-  const card = parseMedCard(
-    JSON.stringify({ ...completeCard, диагноз: { текст: 'Фарингит', цитата: 'фарингит' } }),
-  )
+test('a diagnosis the doctor never stated backfills to null, not to a placeholder', () => {
+  const { диагноз_врача: _omitted, ...partial } = completeCard
+  const card = parseMedCard(JSON.stringify(partial))
 
-  expect(card.диагноз.мкб10).toBe('')
+  // Never MED_CARD_EMPTY_SECTION here. This section becomes the official
+  // Damumed/e-MIS entry, so wording that reads like a finding is worse than
+  // an empty field — and an ICD code with no stated diagnosis behind it is
+  // exactly the inference this split exists to keep out.
+  expect(card.диагноз_врача.текст).toBeNull()
+  expect(card.диагноз_врача.мкб10).toBeNull()
+  expect(card.диагноз_врача.цитата).toBe('')
+})
+
+test("the doctor's text and code are backfilled independently, not as a pair", () => {
+  // A doctor may name a diagnosis in words without a code, or say only the
+  // code. Dropping one because the other is missing would discard something
+  // that was actually said.
+  const wordsOnly = parseMedCard(
+    JSON.stringify({
+      ...completeCard,
+      диагноз_врача: { текст: 'Фарингит', цитата: 'фарингит' },
+    }),
+  )
+  expect(wordsOnly.диагноз_врача.текст).toBe('Фарингит')
+  expect(wordsOnly.диагноз_врача.мкб10).toBeNull()
+
+  const codeOnly = parseMedCard(
+    JSON.stringify({ ...completeCard, диагноз_врача: { мкб10: 'J02.9', цитата: 'жэ ноль два' } }),
+  )
+  expect(codeOnly.диагноз_врача.текст).toBeNull()
+  expect(codeOnly.диагноз_врача.мкб10).toBe('J02.9')
+})
+
+test('a diagnostic guess the model attaches anyway is ignored, not merged in', () => {
+  // The prompt forbids the model from proposing a diagnosis, but nothing stops
+  // a disobedient completion from attaching one anyway — as a stray top-level
+  // key, or as an extra property tucked inside диагноз_врача itself. Either
+  // way it must not leak into the parsed card, because that card becomes the
+  // official Damumed/e-MIS entry.
+  const raw = {
+    ...completeCard,
+    диагноз_врача: {
+      текст: null,
+      мкб10: null,
+      цитата: '',
+      предположение_ai: 'Вирусный фарингит',
+    },
+    предположение_ai: { текст: 'Вирусный фарингит', мкб10: 'J02.9' },
+  }
+
+  const card = parseMedCard(JSON.stringify(raw))
+
+  expect(card.диагноз_врача).toEqual({ текст: null, мкб10: null, цитата: '' })
+  expect(card).not.toHaveProperty('предположение_ai')
 })
 
 test('preserves a dosing condition exactly, without simplifying it away', () => {

@@ -9,7 +9,7 @@ const medCard = {
   жалобы: { текст: 'Боль в горле', цитата: 'горло болит' },
   анамнез: { текст: 'Три дня', цитата: 'три дня' },
   объективно: { текст: 'Зев гиперемирован', цитата: 'зев красный' },
-  диагноз: { текст: 'Острый фарингит', мкб10: 'J02.9', цитата: 'фарингит' },
+  диагноз_врача: { текст: 'Острый фарингит', мкб10: 'J02.9', цитата: 'фарингит' },
   назначения: {
     items: [
       {
@@ -185,6 +185,50 @@ test('no prescriptions backfills to the same empty-section wording every other s
 
   expect(flattened.назначения.текст).toBe(MED_CARD_EMPTY_SECTION)
   expect(flattened.назначения.цитата).toBe('')
+})
+
+test("a diagnosis the doctor never stated never reaches the extension's мкб10 field", () => {
+  const flattened = toExtensionMedCard({
+    ...medCard,
+    диагноз_врача: { текст: null, мкб10: null, цитата: '' },
+  })
+
+  // The single most dangerous field in this payload. The extension's
+  // buildContentText (content.js) writes мкб10 into the МИС entry as a bare
+  // "МКБ-10: {код}" line, so this field must stay empty unless the doctor
+  // actually named a code — the model is never asked for one of its own.
+  expect(flattened.диагноз.мкб10).toBe('')
+  expect(flattened.диагноз.текст).toBe('Диагноз не назван явно')
+})
+
+test('the diagnosis line carries only what the doctor said, unchanged', () => {
+  const flattened = toExtensionMedCard(medCard)
+
+  expect(flattened.диагноз.текст).toBe('Острый фарингит')
+  expect(flattened.диагноз.мкб10).toBe('J02.9')
+  expect(flattened.диагноз.цитата).toBe('фарингит')
+})
+
+test('a doctor who named only a code is reported as such, not as having said nothing', () => {
+  const flattened = toExtensionMedCard({
+    ...medCard,
+    диагноз_врача: { текст: null, мкб10: 'J02.9', цитата: 'жэ ноль два девять' },
+  })
+
+  // "Диагноз не назван явно" next to a filled МКБ-10 line would contradict
+  // itself in the МИС entry. The schema allows this state, so it gets its own
+  // wording rather than being folded into the "said nothing" case.
+  expect(flattened.диагноз.текст).toBe('Диагноз назван только кодом')
+  expect(flattened.диагноз.мкб10).toBe('J02.9')
+})
+
+test('the flattened card carries no leftover structured diagnosis keys', () => {
+  const flattened = toExtensionMedCard(medCard)
+
+  // The extension iterates its own known section keys, so an unfolded
+  // диагноз_врача would not be redundant — it would be invisible to the
+  // doctor reading the panel. There must be nothing left.
+  expect(flattened).not.toHaveProperty('диагноз_врача')
 })
 
 test('a red flag is appended to рекомендации under its own heading', () => {

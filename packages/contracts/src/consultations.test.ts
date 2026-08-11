@@ -11,6 +11,7 @@ import {
   startAppointmentRequestSchema,
   transcriptionIsCapped,
   transcriptionLanguageSchema,
+  type MedCard,
 } from './index'
 
 const medCard = {
@@ -18,7 +19,7 @@ const medCard = {
   жалобы: { текст: 'Боль в горле третий день', цитата: 'горло болит третий день' },
   анамнез: { текст: 'Не указано в ходе приёма', цитата: '' },
   объективно: { текст: 'Зев гиперемирован', цитата: 'зев красный' },
-  диагноз: { текст: 'Острый фарингит', мкб10: 'J02.9', цитата: 'похоже на фарингит' },
+  диагноз_врача: { текст: 'Острый фарингит', мкб10: 'J02.9', цитата: 'похоже на фарингит' },
   назначения: {
     items: [
       {
@@ -34,7 +35,7 @@ const medCard = {
   красные_флаги: { текст: null, цитата: '' },
   рекомендации: { текст: 'Обильное питьё', цитата: 'пейте больше' },
   следующий_прием: { текст: 'Через 5 дней', цитата: 'приходите через пять дней' },
-} as const
+} satisfies MedCard
 
 describe('consultation contracts', () => {
   test('every med-card section key is present in the med-card schema', () => {
@@ -47,14 +48,35 @@ describe('consultation contracts', () => {
     }
   })
 
-  test('only the diagnosis section carries an ICD-10 code', () => {
-    expect(medCardSchema.parse(medCard).диагноз.мкб10).toBe('J02.9')
+  test("the doctor's diagnosis is nullable in both halves, and neither may be omitted", () => {
+    // A doctor may state a diagnosis in words, name only a code, or neither.
+    // Nullable rather than optional: an absent field is indistinguishable from
+    // a rendering bug, while an explicit null says the doctor did not say it.
+    expect(
+      medCardSchema.parse({
+        ...medCard,
+        диагноз_врача: { текст: null, мкб10: null, цитата: '' },
+      }).диагноз_врача.текст,
+    ).toBeNull()
+
     expect(() =>
       medCardSchema.parse({
         ...medCard,
-        диагноз: { текст: 'Острый фарингит', цитата: 'фарингит' },
+        диагноз_врача: { текст: 'Острый фарингит', цитата: 'фарингит' },
       }),
     ).toThrow()
+  })
+
+  test('a stray diagnostic guess the model attaches anyway is stripped, not validated through', () => {
+    // The model is never asked for a diagnosis of its own — see prompts.ts —
+    // but nothing stops a disobedient completion from attaching one anyway.
+    // Zod strips unknown keys by default, so it must not survive parsing.
+    const parsed = medCardSchema.parse({
+      ...medCard,
+      предположение_ai: { текст: 'Вирусный фарингит', мкб10: 'J02.9' },
+    })
+
+    expect(parsed).not.toHaveProperty('предположение_ai')
   })
 
   test('a prescription requires a drug name, but every other field is explicitly nullable', () => {

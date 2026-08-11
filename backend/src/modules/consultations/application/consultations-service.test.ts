@@ -26,7 +26,7 @@ const medCardJson = JSON.stringify({
   жалобы: { текст: 'Боль в горле', цитата: 'горло болит' },
   анамнез: { текст: 'Три дня', цитата: 'три дня' },
   объективно: { текст: 'Зев гиперемирован', цитата: 'зев красный' },
-  диагноз: { текст: 'Острый фарингит', мкб10: 'J02.9', цитата: 'фарингит' },
+  диагноз_врача: { текст: 'Острый фарингит', мкб10: 'J02.9', цитата: 'фарингит' },
   назначения: {
     items: [
       {
@@ -297,7 +297,7 @@ test('stores the transcript and duration before the model runs', async () => {
       durationSeconds: 412,
     },
   ])
-  expect(result.medCard.диагноз.мкб10).toBe('J02.9')
+  expect(result.medCard.диагноз_врача.мкб10).toBe('J02.9')
   expect(result.appointment.status).toBe('completed')
   // The end-to-end safety property this pipeline exists to protect: a dosing
   // condition the model returned must survive completion parsing and land in
@@ -378,7 +378,7 @@ test('transcribes a recording server-side and generates the med card from it', a
       durationSeconds: 180,
     },
   ])
-  expect(result.medCard.диагноз.мкб10).toBe('J02.9')
+  expect(result.medCard.диагноз_врача.мкб10).toBe('J02.9')
   expect(result.appointment.status).toBe('completed')
 })
 

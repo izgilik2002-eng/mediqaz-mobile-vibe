@@ -70,7 +70,7 @@ export const MED_CARD_SECTIONS = [
   { key: 'жалобы', label: 'Жалобы' },
   { key: 'анамнез', label: 'Анамнез' },
   { key: 'объективно', label: 'Объективно' },
-  { key: 'диагноз', label: 'Диагноз' },
+  { key: 'диагноз_врача', label: 'Диагноз врача' },
   { key: 'назначения', label: 'Назначения' },
   { key: 'красные_флаги', label: 'Когда обращаться срочно' },
   { key: 'рекомендации', label: 'Рекомендации' },
@@ -84,8 +84,17 @@ const sectionSchema = z.object({
   цитата: z.string(),
 })
 
-const diagnosisSectionSchema = sectionSchema.extend({
-  мкб10: z.string(),
+/**
+ * What the doctor actually said. Both fields are nullable and independent: a
+ * doctor may state a diagnosis in words, or name only a code, or neither.
+ * Nothing the model concluded on its own belongs here — this section is the
+ * one the med card presents as the doctor's own record, and it is what the
+ * browser extension writes into the official Damumed/e-MIS entry.
+ */
+const doctorDiagnosisSchema = z.object({
+  текст: z.string().nullable(),
+  мкб10: z.string().nullable(),
+  цитата: z.string(),
 })
 
 /**
@@ -128,7 +137,7 @@ export const medCardSchema = z.object({
   жалобы: sectionSchema,
   анамнез: sectionSchema,
   объективно: sectionSchema,
-  диагноз: diagnosisSectionSchema,
+  диагноз_врача: doctorDiagnosisSchema,
   назначения: prescriptionsSectionSchema,
   красные_флаги: redFlagsSectionSchema,
   рекомендации: sectionSchema,

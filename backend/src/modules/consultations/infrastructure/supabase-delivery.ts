@@ -19,6 +19,13 @@ import type { FetchLike, MedCardDeliveryPublisher } from '../application/ports'
  * - красные_флаги, which the extension has no key for at all, is appended to
  *   the end of рекомендации.текст under a "СРОЧНО ОБРАТИТЬСЯ ПРИ:" heading.
  *   If the doctor named no red flags, рекомендации is sent unchanged.
+ * - диагноз_врача maps straight onto the extension's `диагноз` key. The
+ *   model is never asked for a diagnosis of its own — see med-card.ts — so
+ *   there is nothing else to fold in here: `мкб10` is only ever the doctor's
+ *   own code, or empty. That field is not decorative: the extension's
+ *   `buildContentText` (content.js) writes it into the МИС entry as a bare
+ *   "МКБ-10: {код}" line, so anything placed there enters the official record
+ *   carrying the doctor's authority.
  */
 export function toExtensionMedCard(medCard: MedCard) {
   const prescriptionsText = medCard.назначения.items.length
@@ -44,10 +51,25 @@ export function toExtensionMedCard(medCard: MedCard) {
     жалобы: medCard.жалобы,
     анамнез: medCard.анамнез,
     объективно: medCard.объективно,
-    диагноз: medCard.диагноз,
+    диагноз: toExtensionDiagnosis(medCard),
     назначения: { текст: prescriptionsText, цитата: prescriptionsQuote },
     рекомендации: { текст: recommendationsText, цитата: medCard.рекомендации.цитата },
     следующий_прием: medCard.следующий_прием,
+  }
+}
+
+function toExtensionDiagnosis(medCard: MedCard) {
+  const doctor = medCard.диагноз_врача
+
+  // Three distinguishable states, because the schema allows all three and
+  // collapsing them would misreport what the doctor did.
+  const text =
+    doctor.текст ?? (doctor.мкб10 ? 'Диагноз назван только кодом' : 'Диагноз не назван явно')
+
+  return {
+    текст: text,
+    мкб10: doctor.мкб10 ?? '',
+    цитата: doctor.цитата,
   }
 }
 

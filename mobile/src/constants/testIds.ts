@@ -36,6 +36,7 @@ export const TEST_IDS = {
       prescription: 'appointment.medcard-prescription',
       noPrescriptions: 'appointment.medcard-no-prescriptions',
       redFlagsMissing: 'appointment.medcard-red-flags-missing',
+      diagnosisMissing: 'appointment.medcard-diagnosis-missing',
     },
   },
   profile: {

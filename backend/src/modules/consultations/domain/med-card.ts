@@ -76,6 +76,11 @@ function backfillSections(parsed: unknown): MedCard {
       continue
     }
 
+    if (key === 'диагноз_врача') {
+      card[key] = backfillDoctorDiagnosis(source.диагноз_врача)
+      continue
+    }
+
     const section = source[key]
     const fields = typeof section === 'object' && section !== null
       ? (section as Record<string, unknown>)
@@ -84,7 +89,6 @@ function backfillSections(parsed: unknown): MedCard {
     card[key] = {
       текст: nonEmptyString(fields.текст) ?? MED_CARD_EMPTY_SECTION,
       цитата: nonEmptyString(fields.цитата) ?? '',
-      ...(key === 'диагноз' ? { мкб10: nonEmptyString(fields.мкб10) ?? '' } : {}),
     }
   }
 
@@ -127,6 +131,35 @@ function backfillPrescriptions(value: unknown): PrescriptionItem[] {
     })
   }
   return items
+}
+
+/**
+ * Backfills to `null`, never to `MED_CARD_EMPTY_SECTION`. A diagnosis the
+ * doctor did not state must stay empty rather than pick up wording that reads
+ * like a finding — this is the section the extension writes into the official
+ * Damumed/e-MIS entry.
+ *
+ * The two fields are filled independently: a doctor may state a diagnosis in
+ * words, name only a code, or neither, and dropping one because the other is
+ * missing would discard something that was actually said.
+ *
+ * Only `текст`, `мкб10`, and `цитата` are ever read off the model's object —
+ * any other property the model attaches here (an inferred code under a
+ * different name, a stray "предположение" field despite the prompt
+ * forbidding it) is silently not looked at. The model is never asked for a
+ * diagnostic guess in any field, in any shape; this function does not go
+ * looking for one either.
+ */
+function backfillDoctorDiagnosis(value: unknown) {
+  const fields = typeof value === 'object' && value !== null
+    ? (value as Record<string, unknown>)
+    : {}
+
+  return {
+    текст: nonEmptyString(fields.текст) ?? null,
+    мкб10: nonEmptyString(fields.мкб10) ?? null,
+    цитата: nonEmptyString(fields.цитата) ?? '',
+  }
 }
 
 /**
